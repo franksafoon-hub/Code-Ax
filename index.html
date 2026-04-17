@@ -1666,7 +1666,7 @@ function notifyBrowser(title, body, opts = {}) {
         tag: opts.tag || undefined,
         silent: false,
       });
-      setTimeout(() => n.close(), 3000);
+      setTimeout(() => n.close(), 10000);
     } catch(e) {}
   };
   if (Notification.permission === 'granted') show();
