@@ -2598,8 +2598,6 @@ function showDonePopup(ticket) {
 
   const popup = document.getElementById('donePopup');
   popup.style.display = 'flex';
-  // play browser notification if permitted
-  notifyBrowser(`Code พร้อม ${ref}`, items.map(it => it.code||'OK').join(', '));
 }
 
 function closeDonePopup() {
