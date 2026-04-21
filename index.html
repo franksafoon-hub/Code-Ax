@@ -405,7 +405,36 @@ body {
 #lightbox.open { display:flex; }
 #lightbox img { max-width:90vw;max-height:90vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,0.5); }
 
-@keyframes shake { 0%,100%{transform:rotate(0)}20%{transform:rotate(-15deg)}40%{transform:rotate(15deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(8deg)} }
+/* ─── COMMENT PER ITEM ─── */
+.wt-cmtbtn-td { width:36px;text-align:center;padding:4px !important;vertical-align:middle; }
+.wt-cmtbtn { background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:3px 6px;font-size:11px;color:var(--text3);transition:all 0.12s;display:flex;align-items:center;gap:3px;white-space:nowrap; }
+.wt-cmtbtn:hover { background:rgba(255,149,0,0.08);border-color:rgba(255,149,0,0.3);color:var(--orange); }
+.wt-cmtbtn.has-comments { background:rgba(255,149,0,0.08);border-color:rgba(255,149,0,0.3);color:var(--orange);font-weight:700; }
+.wt-cmtbtn.open { background:rgba(255,149,0,0.14);border-color:rgba(255,149,0,0.5);color:var(--orange); }
+.wt-cmts-row { display:none; }
+.wt-cmts-row.open { display:table-row; }
+.wt-cmts-cell { padding:0 !important;border-bottom:2px solid rgba(255,149,0,0.18) !important;background:rgba(255,250,240,0.7) !important; }
+.wt-cmts-inner { padding:10px 14px;display:flex;flex-direction:column;gap:7px; }
+.item-comment-thread { display:flex;flex-direction:column;gap:5px; }
+.item-comment-bubble { display:flex;flex-direction:column;gap:2px;padding:7px 10px;border-radius:8px;font-size:12px;line-height:1.6;max-width:85%; }
+.item-comment-bubble.worker { background:linear-gradient(135deg,#fff4e0,#ffe8c0);border:1px solid rgba(255,149,0,0.22);align-self:flex-start; }
+.item-comment-bubble.sender { background:linear-gradient(135deg,#e8f4ff,#d5eaff);border:1px solid rgba(0,122,255,0.2);align-self:flex-end; }
+.item-comment-meta { font-size:10px;font-weight:700;display:flex;align-items:center;gap:4px; }
+.item-comment-meta.worker { color:var(--orange); }
+.item-comment-meta.sender { color:var(--accent); }
+.item-comment-meta span { font-weight:400;color:var(--text3); }
+.item-comment-text { color:var(--text); }
+.item-comment-input-row { display:flex;gap:6px;align-items:flex-end; }
+.item-comment-input { flex:1;background:white;border:1px solid var(--border2);color:var(--text);padding:6px 9px;border-radius:7px;font-size:12.5px;font-family:-apple-system,'Sarabun',sans-serif;outline:none;resize:none;line-height:1.5;transition:all 0.13s;min-height:32px;overflow-y:hidden; }
+.item-comment-input:focus { border-color:var(--orange);box-shadow:0 0 0 2px rgba(255,149,0,0.15); }
+.item-comment-input::placeholder { color:var(--text3); }
+/* sender card per-item comments */
+.td-cmt-badge { display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--orange);background:rgba(255,149,0,0.1);border:1px solid rgba(255,149,0,0.2);border-radius:10px;padding:1px 6px;cursor:pointer;font-weight:600;vertical-align:middle;margin-left:4px;transition:all 0.12s; }
+.td-cmt-badge:hover { background:rgba(255,149,0,0.18); }
+.sender-item-cmts-row { display:none;background:rgba(255,250,240,0.6); }
+.sender-item-cmts-row.open { display:table-row; }
+.sender-item-cmts-cell { padding:8px 12px !important;border-bottom:2px solid rgba(255,149,0,0.15) !important; }
+
 .shake { animation:shake 0.5s ease; }
 .badge-count { background:var(--red);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center; }
 </style>
@@ -1184,14 +1213,42 @@ function buildTicketCardHTML(ticket) {
         <th class="td-code">Code AX</th>
       </tr></thead>
       <tbody>
-        ${items.map((item, i) => `
-          <tr>
+        ${items.map((item, i) => {
+          const cmts = Array.isArray(item.comments) ? item.comments : [];
+          const cmtBadge = cmts.length
+            ? `<span class="td-cmt-badge" onclick="event.stopPropagation();toggleSenderItemCmt('${ticket.id}',${i})" title="ความคิดเห็น ${cmts.length} ข้อความ">💬 ${cmts.length}</span>`
+            : '';
+          const cmt2Html = cmts.length ? cmts.map(c=>`
+            <div class="item-comment-bubble ${c.role}">
+              <div class="item-comment-meta ${c.role}">${escHtml(c.author)} <span>${fmtTime(c.created_at)}</span></div>
+              <div class="item-comment-text">${escHtml(c.text).replace(/\n/g,'<br>')}</div>
+            </div>`).join('') : '<div style="font-size:11px;color:var(--text3)">ยังไม่มีความคิดเห็น</div>';
+          const myToken = myTokens.find(t=>t.id===ticket.id);
+          const senderAuthor = myToken?.name || ticket.sender_name || 'ผู้ส่ง';
+          return `
+          <tr onclick="copyCell('${item.description.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}',this.cells[1])" style="cursor:pointer">
             <td class="td-no">${i+1}</td>
-            <td class="td-desc" onclick="copyCell('${item.description.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}',this)" style="cursor:pointer">${escHtml(item.description)}</td>
-            <td class="td-code" onclick="${item.code ? `copyCell('${(item.code).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}',this)` : ''}" style="${item.code ? 'cursor:pointer' : ''}">
+            <td class="td-desc">${escHtml(item.description)}${cmtBadge}</td>
+            <td class="td-code" onclick="event.stopPropagation();${item.code?`copyCell('${(item.code).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}',this)`:''}" style="${item.code?'cursor:pointer':''}">
               ${item.code ? `<span class="code-chip">${escHtml(item.code)}</span>` : `<span class="code-pending">รอ</span>`}
             </td>
-          </tr>`).join('')}
+          </tr>
+          <tr class="sender-item-cmts-row" id="sicmtrow_${ticket.id}_${i}">
+            <td colspan="3" class="sender-item-cmts-cell">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div class="item-comment-thread">${cmt2Html}</div>
+                <div class="item-comment-input-row">
+                  <textarea class="item-comment-input" id="senderItemCmtInput_${ticket.id}_${i}" rows="1"
+                    placeholder="ตอบกลับ / แจ้งคนทำงานสำหรับรายการนี้..."
+                    oninput="autoResizeEl(this)"
+                    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addItemComment('${ticket.id}',${i},'sender','${escHtml(senderAuthor).replace(/'/g,"\\'")}')}"
+                  ></textarea>
+                  <button class="btn btn-purple btn-sm" onclick="addItemComment('${ticket.id}',${i},'sender','${escHtml(senderAuthor).replace(/'/g,"\\'")}')">ส่ง</button>
+                </div>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
       </tbody>
     </table>` : `<div style="font-size:12px;color:var(--text3)">${escHtml(ticket.message)}</div>`;
 
@@ -1263,6 +1320,22 @@ function subscribeAsSender() {
       } else if (updated.status === 'in_progress') {
         showToast(`#${updated.ticket_ref || updated.ticket_no} กำลังดำเนินการ`, 'info', '⚙️');
       }
+      // แจ้งเตือนเมื่อมี comment ใหม่จาก worker (item-level)
+      const prevItems = myTokens._cache?.[updated.id]?.items || [];
+      const newItems2 = Array.isArray(updated.items) ? updated.items : [];
+      let newWorkerCmtText = null;
+      newItems2.forEach((item, i) => {
+        const prevCmts = Array.isArray(prevItems[i]?.comments) ? prevItems[i].comments : [];
+        const newCmts = Array.isArray(item.comments) ? item.comments : [];
+        const fresh = newCmts.filter(c => c.role==='worker' && !prevCmts.find(p=>p.id===c.id));
+        if (fresh.length && !newWorkerCmtText) newWorkerCmtText = `#${i+1} ${item.description.slice(0,20)}: "${fresh[0].text.slice(0,40)}"`;
+      });
+      if (newWorkerCmtText) {
+        showToast(`💬 คนทำงานถาม: ${newWorkerCmtText}`, 'warn', '💬');
+        notifyBrowser('💬 มีคำถามจากคนทำงาน', newWorkerCmtText, { tag: 'comment-' + updated.id });
+      }
+      if (!myTokens._cache) myTokens._cache = {};
+      myTokens._cache[updated.id] = updated;
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'task_tickets' }, payload => {
       allTickets = allTickets.filter(t => t.id !== payload.old.id);
@@ -1321,7 +1394,7 @@ function renderWorkerQueue() {
   if (done.length) {
     const d = document.createElement('div'); d.className = 'divider'; list.appendChild(d);
     const lbl2 = document.createElement('div'); lbl2.className = 'section-label'; lbl2.textContent = 'เสร็จแล้ว'; list.appendChild(lbl2);
-    done.slice(0, 10).forEach(t => list.appendChild(buildQueueItem(t)));
+    done.forEach(t => list.appendChild(buildQueueItem(t)));
   }
   if (selectedTicketId) renderWorkerDetail(selectedTicketId);
 }
@@ -1336,13 +1409,17 @@ function buildQueueItem(ticket) {
   const doneCount = items.filter(i => i.code).length;
   const dept = ticket.department || '';
   const attachText = attachments.length ? ` · 📎${attachments.length}` : '';
+  const comments = Array.isArray(ticket.comments) ? ticket.comments : [];
+  // นับ comment ระดับรายการ (item.comments)
+  const itemCommentCount = items.reduce((n, it) => n + (Array.isArray(it.comments) ? it.comments.length : 0), 0);
+  const commentText = itemCommentCount > 0 ? ` · 💬${itemCommentCount}` : '';
   el.innerHTML = `
     <div class="q-top">
       <span class="q-name">${escHtml(ticket.sender_name)}</span>
       <span class="status-badge ${ticket.status}">${statusLabel(ticket.status)}</span>
     </div>
     ${dept ? `<div style="margin:1px 0">${deptBadgeHtml(dept)}</div>` : ''}
-    <div class="q-preview">${items.length} รายการ${items.length > 0 ? ' · ' + doneCount + '/' + items.length + ' Code' : ''}${attachText}</div>
+    <div class="q-preview">${items.length} รายการ${items.length > 0 ? ' · ' + doneCount + '/' + items.length + ' Code' : ''}${attachText}${commentText}</div>
     <div style="display:flex;align-items:center;justify-content:space-between">
       <span class="q-time">${fmtTime(ticket.created_at)}</span>
       ${ticket.status === 'pending' ? '<span class="new-badge">NEW</span>' : ''}
@@ -1391,28 +1468,37 @@ function renderWorkerDetail(id) {
     wrap.style.cssText = 'overflow:auto;border:1px solid var(--border);border-radius:10px;';
     const table = document.createElement('table');
     table.className = 'worker-items-table';
-    table.innerHTML = `<thead><tr><th class="wt-no">#</th><th>รายละเอียด</th><th style="width:170px;text-align:center">Code AX</th></tr></thead>`;
+    table.innerHTML = `<thead><tr>
+      <th class="wt-no">#</th>
+      <th>รายละเอียด</th>
+      <th style="width:170px;text-align:center">Code AX</th>
+      <th style="width:40px;text-align:center" title="ความคิดเห็น">💬</th>
+    </tr></thead>`;
     const tbody = document.createElement('tbody');
     table.appendChild(tbody);
 
     items.forEach((item, i) => {
+      const itemCmts = Array.isArray(item.comments) ? item.comments : [];
+      const hasCmts = itemCmts.length > 0;
+
+      // ─── Main item row ───
       const tr = document.createElement('tr');
       tr.id = `wrow_${id}_${i}`;
       if (isDone) tr.className = 'wt-done';
       tr.title = 'คลิกเพื่อ Copy';
       tr.onclick = (e) => {
-        if (e.target.closest('.code-input') || e.target.closest('.fill-handle')) return;
+        if (e.target.closest('.code-input') || e.target.closest('.fill-handle') || e.target.closest('.wt-cmtbtn')) return;
         const codeEl = document.getElementById(`code_${id}_${i}`);
         const codeVal = codeEl ? codeEl.value.trim() : (item.code || '');
         const text = codeVal ? `${item.description}\t${codeVal}` : item.description;
         navigator.clipboard.writeText(text).then(() => {
-          tr.querySelectorAll('td').forEach(td => { td.style.transition = 'background 0.1s'; td.style.background = 'rgba(52,199,89,0.18)'; });
-          setTimeout(() => tr.querySelectorAll('td').forEach(td => td.style.background = ''), 600);
-          showToast('Copy แล้ว ✓', 'success', '📋');
+          tr.querySelectorAll('td').forEach(td => { td.style.transition='background 0.1s'; td.style.background='rgba(52,199,89,0.18)'; });
+          setTimeout(() => tr.querySelectorAll('td').forEach(td => td.style.background=''), 600);
+          showToast('Copy แล้ว ✓','success','📋');
         }).catch(() => {
-          const ta2 = document.createElement('textarea'); ta2.value = text; ta2.style.cssText = 'position:fixed;opacity:0';
+          const ta2=document.createElement('textarea'); ta2.value=text; ta2.style.cssText='position:fixed;opacity:0';
           document.body.appendChild(ta2); ta2.select(); document.execCommand('copy'); document.body.removeChild(ta2);
-          showToast('Copy แล้ว ✓', 'success', '📋');
+          showToast('Copy แล้ว ✓','success','📋');
         });
       };
       tr.innerHTML = `
@@ -1420,18 +1506,49 @@ function renderWorkerDetail(id) {
         <td class="wt-desc">${escHtml(item.description)}</td>
         <td class="wt-code">
           ${isDone
-            ? `<div class="code-done">${escHtml(item.code || '—')}</div>`
+            ? `<div class="code-done">${escHtml(item.code||'—')}</div>`
             : `<div class="fill-wrap">
-                <input type="text" class="code-input${item.code ? ' filled' : ''}"
-                  id="code_${id}_${i}" value="${escHtml(item.code || '')}" placeholder="—"
+                <input type="text" class="code-input${item.code?' filled':''}"
+                  id="code_${id}_${i}" value="${escHtml(item.code||'')}" placeholder="—"
                   oninput="onCodeInput(this,'${id}',${i})"
                   onkeydown="codeKeyNav(event,'${id}',${i},${items.length})">
-                ${i === items.length - 1
+                ${i===items.length-1
                   ? `<div class="fill-handle" title="ลากเพื่อ Fill Code" onmousedown="startFill(event,'${id}',${items.length})"></div>`
                   : ''}
               </div>`}
+        </td>
+        <td class="wt-cmtbtn-td">
+          <button class="wt-cmtbtn ${hasCmts?'has-comments':''}" id="cmtbtn_${id}_${i}"
+            onclick="toggleItemComments('${id}',${i})" title="ความคิดเห็นรายการนี้">
+            💬${hasCmts?`<span>${itemCmts.length}</span>`:''}
+          </button>
         </td>`;
       tbody.appendChild(tr);
+
+      // ─── Expandable comment row ───
+      const cmtTr = document.createElement('tr');
+      cmtTr.id = `cmtrow_${id}_${i}`;
+      cmtTr.className = 'wt-cmts-row';
+      const threadHtml = itemCmts.length
+        ? `<div class="item-comment-thread">${itemCmts.map(c=>`
+            <div class="item-comment-bubble ${c.role}">
+              <div class="item-comment-meta ${c.role}">${escHtml(c.author)} <span>${fmtTime(c.created_at)}</span></div>
+              <div class="item-comment-text">${escHtml(c.text).replace(/\n/g,'<br>')}</div>
+            </div>`).join('')}</div>`
+        : '<div style="font-size:11px;color:var(--text3);padding:2px 0">ยังไม่มีความคิดเห็น</div>';
+      const inputHtml = `
+        <div class="item-comment-input-row">
+          <textarea class="item-comment-input" id="itemCmtInput_${id}_${i}" rows="1"
+            placeholder="ถาม / แจ้งผู้ส่งสำหรับรายการนี้..."
+            oninput="autoResizeEl(this)"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addItemComment('${id}',${i},'worker','คนทำงาน')}"
+          ></textarea>
+          <button class="btn btn-amber btn-sm" onclick="addItemComment('${id}',${i},'worker','คนทำงาน')">ส่ง 💬</button>
+        </div>`;
+      cmtTr.innerHTML = `<td colspan="4" class="wt-cmts-cell">
+        <div class="wt-cmts-inner">${threadHtml}${isDone?'':inputHtml}</div>
+      </td>`;
+      tbody.appendChild(cmtTr);
     });
 
     wrap.appendChild(table);
@@ -1447,14 +1564,15 @@ function renderWorkerDetail(id) {
       const btn = document.createElement('button');
       btn.className = 'attach-file-chip';
       btn.style.cssText = 'width:100%;justify-content:flex-start;';
-      btn.innerHTML = `${fileIcon(f.name)} <span>${escHtml(f.name)}</span> <span style="margin-left:auto;font-size:10px;color:var(--text3);flex-shrink:0">${fmtSize(f.size || 0)}</span>`;
-      btn.onclick = () => openFile(f.path, f.name, f.type || '');
+      btn.innerHTML = `${fileIcon(f.name)} <span>${escHtml(f.name)}</span> <span style="margin-left:auto;font-size:10px;color:var(--text3);flex-shrink:0">${fmtSize(f.size||0)}</span>`;
+      btn.onclick = () => openFile(f.path, f.name, f.type||'');
       attachWrap.appendChild(btn);
     });
     inner.appendChild(attachWrap);
   }
 
   const replyArea = document.getElementById('workerReplyArea');
+
   if (isDone) {
     replyArea.innerHTML = `<div style="font-size:12px;color:var(--text3);text-align:center;padding:4px 0">✅ งานนี้เสร็จสมบูรณ์แล้ว</div>`;
   } else {
@@ -1850,7 +1968,93 @@ function copyDoneRow(tr, desc, code) {
   });
 }
 
-// ─── DELETE ───
+// ─── COMMENTS (per item) ───
+function autoResizeEl(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// Worker: toggle expand comment row for item i
+function toggleItemComments(ticketId, itemIdx) {
+  const cmtRow = document.getElementById(`cmtrow_${ticketId}_${itemIdx}`);
+  const cmtBtn = document.getElementById(`cmtbtn_${ticketId}_${itemIdx}`);
+  if (!cmtRow) return;
+  const isOpen = cmtRow.classList.toggle('open');
+  if (cmtBtn) cmtBtn.classList.toggle('open', isOpen);
+  if (isOpen) {
+    setTimeout(() => {
+      const inp = document.getElementById(`itemCmtInput_${ticketId}_${itemIdx}`);
+      if (inp) inp.focus();
+    }, 50);
+  }
+}
+
+// Sender: toggle expand comment row for item i in sender card
+function toggleSenderItemCmt(ticketId, itemIdx) {
+  const row = document.getElementById(`sicmtrow_${ticketId}_${itemIdx}`);
+  if (!row) return;
+  const isOpen = row.classList.toggle('open');
+  if (isOpen) {
+    setTimeout(() => {
+      const inp = document.getElementById(`senderItemCmtInput_${ticketId}_${itemIdx}`);
+      if (inp) inp.focus();
+    }, 50);
+  }
+}
+
+// Add comment to a specific item (both roles use this)
+async function addItemComment(ticketId, itemIdx, role, author) {
+  const inputId = role === 'worker'
+    ? `itemCmtInput_${ticketId}_${itemIdx}`
+    : `senderItemCmtInput_${ticketId}_${itemIdx}`;
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  // Fetch fresh items to avoid overwrite
+  const { data: fresh, error: fetchErr } = await sb.from('task_tickets').select('items').eq('id', ticketId).single();
+  if (fetchErr || !fresh) { showToast('โหลดข้อมูลไม่สำเร็จ', 'warn', '❌'); return; }
+
+  const freshItems = Array.isArray(fresh.items) ? fresh.items : [];
+  if (!freshItems[itemIdx]) { showToast('ไม่พบรายการ', 'warn', '❌'); return; }
+
+  const existingCmts = Array.isArray(freshItems[itemIdx].comments) ? freshItems[itemIdx].comments : [];
+  freshItems[itemIdx].comments = [...existingCmts, {
+    id: Math.random().toString(36).slice(2),
+    role,
+    author,
+    text,
+    created_at: new Date().toISOString()
+  }];
+
+  input.disabled = true;
+  const { error } = await sb.from('task_tickets').update({ items: freshItems }).eq('id', ticketId);
+  input.disabled = false;
+
+  if (error) { showToast('ส่งไม่สำเร็จ', 'warn', '❌'); return; }
+  input.value = '';
+  input.style.height = '';
+
+  // Update local cache
+  if (role === 'worker') {
+    updateLocalTicket(ticketId, { items: freshItems });
+    renderWorkerDetail(ticketId);
+    // Re-open the comment row after re-render
+    setTimeout(() => {
+      const cmtRow = document.getElementById(`cmtrow_${ticketId}_${itemIdx}`);
+      const cmtBtn = document.getElementById(`cmtbtn_${ticketId}_${itemIdx}`);
+      if (cmtRow) cmtRow.classList.add('open');
+      if (cmtBtn) cmtBtn.classList.add('open');
+      const inp2 = document.getElementById(`itemCmtInput_${ticketId}_${itemIdx}`);
+      if (inp2) inp2.focus();
+    }, 30);
+  }
+  showToast('ส่งความคิดเห็นแล้ว 💬', 'success', '✅');
+}
+
+
+
 async function deleteSenderTicket(id) {
   if (!confirm('ลบรายการนี้?')) return;
   await deleteTicketById(id);
