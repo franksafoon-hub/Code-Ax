@@ -1077,8 +1077,9 @@ function checkSettingsPass() {
   const val = document.getElementById('settingsPassInput')?.value;
   if (val === DEPT_MANAGER_PASS) {
     settingsUnlocked = true;
-    closeSettings();
-    openSettings();
+    // Re-render overlay โดยตรง ไม่ต้อง close+reopen (จะ reset flag)
+    const overlay = document.getElementById('settingsOverlay');
+    if (overlay) _openSettingsPanel(overlay);
   } else {
     const err = document.getElementById('settingsPassErr');
     if (err) err.style.display = 'block';
