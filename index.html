@@ -405,7 +405,44 @@ body {
 #lightbox.open { display:flex; }
 #lightbox img { max-width:90vw;max-height:90vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,0.5); }
 
-/* ─── COMMENT PER ITEM ─── */
+/* ─── WORKER EDIT MODE (re-edit done ticket) ─── */
+.edit-mode-banner {
+  display:flex;align-items:center;gap:8px;
+  background:linear-gradient(135deg,rgba(255,149,0,0.1),rgba(255,149,0,0.06));
+  border:1px solid rgba(255,149,0,0.3);
+  border-radius:8px;padding:8px 12px;font-size:12px;color:#b36200;font-weight:500;
+}
+.wt-done.edit-unlocked td { background:rgba(255,149,0,0.04) !important; }
+
+.item-ref-input {
+  background:rgba(255,255,255,0.9);
+  border:1px solid rgba(0,122,255,0.25);
+  color:var(--accent);
+  padding:5px 8px;
+  border-radius:6px;
+  font-size:11.5px;
+  font-family:-apple-system,'Sarabun',monospace;
+  font-weight:600;
+  outline:none;
+  transition:all 0.13s;
+  width:100%;
+  letter-spacing:0.04em;
+}
+.item-ref-input:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(0,122,255,0.12); background:white; }
+.item-ref-input::placeholder { color:var(--text3); font-weight:400; letter-spacing:0; }
+.item-desc-wrap { flex:1; display:flex; flex-direction:column; gap:4px; }
+/* ref code chip in table cells */
+.ref-code-chip {
+  display:inline-block; padding:1px 7px;
+  background:rgba(0,122,255,0.08); border:1px solid rgba(0,122,255,0.18);
+  color:var(--accent); border-radius:5px;
+  font-size:11px; font-weight:700; letter-spacing:0.04em;
+  cursor:pointer; transition:all 0.12s; vertical-align:middle;
+  font-family:monospace;
+}
+.ref-code-chip:hover { background:rgba(0,122,255,0.16); }
+.ref-code-chip.copied { background:rgba(52,199,89,0.2); border-color:rgba(52,199,89,0.4); color:var(--green); }
+
 .wt-cmtbtn-td { width:36px;text-align:center;padding:4px !important;vertical-align:middle; }
 .wt-cmtbtn { background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:3px 6px;font-size:11px;color:var(--text3);transition:all 0.12s;display:flex;align-items:center;gap:3px;white-space:nowrap; }
 .wt-cmtbtn:hover { background:rgba(255,149,0,0.08);border-color:rgba(255,149,0,0.3);color:var(--orange); }
@@ -748,6 +785,8 @@ let workerTickets = [];
 let senderChannel = null, workerChannel = null;
 let currentMode = null;
 let senderPendingFiles = [];
+let fillState = null;
+let workerEditSet = new Set();
 
 // ─── DEPARTMENTS ───
 let departments = JSON.parse(localStorage.getItem('dispatch_departments') || '["PE","Designer"]');
@@ -864,22 +903,28 @@ function setWorkerDept(dept) {
 }
 
 // ─── ITEM ROWS ───
-function addItemRow(val = '') {
+function addItemRow(val = '', refCode = '') {
   const rows = document.getElementById('itemRows');
   const idx = rows.children.length + 1;
   const div = document.createElement('div');
   div.className = 'item-row';
   div.innerHTML = `
     <span class="item-num">${idx}</span>
-    <textarea class="item-input" rows="2" placeholder="เช่น บัวอลูมิเนียม SK02 ขนาด 3.0m. White Sahara ตัดขนาด 975mm."
-      oninput="autoResize(this);updateItemNums()"
-      onkeydown="itemKeyNav(event,this)">${escHtml(val)}</textarea>
+    <div class="item-desc-wrap">
+      <input type="text" class="item-ref-input" placeholder="Code อ้างอิง (ถ้ามี) เช่น MV09G04P0016Y"
+        value="${escHtml(refCode)}"
+        onkeydown="if(event.key==='Tab'){event.preventDefault();this.closest('.item-row').querySelector('.item-input').focus()}">
+      <textarea class="item-input" rows="2" placeholder="เช่น MDF-HMR 09 mm. [V313] ปิดผิว 2 หน้า PVC PP55..."
+        oninput="autoResize(this);updateItemNums()"
+        onkeydown="itemKeyNav(event,this)">${escHtml(val)}</textarea>
+    </div>
     <button class="item-del" onclick="removeItemRow(this)" title="ลบรายการ">✕</button>`;
   rows.appendChild(div);
   updateItemNums();
+  const refIn = div.querySelector('.item-ref-input');
   const ta = div.querySelector('textarea');
   autoResize(ta);
-  setTimeout(() => ta.focus(), 50);
+  setTimeout(() => refIn.focus(), 50);
 }
 
 function removeItemRow(btn) { btn.closest('.item-row').remove(); updateItemNums(); }
@@ -902,7 +947,12 @@ function itemKeyNav(e, ta) {
 }
 
 function getItemValues() {
-  return [...document.querySelectorAll('#itemRows .item-input')].map(ta => ta.value.trim()).filter(v => v !== '');
+  return [...document.querySelectorAll('#itemRows .item-row')]
+    .map(row => ({
+      ref_code: (row.querySelector('.item-ref-input')?.value || '').trim(),
+      description: (row.querySelector('.item-input')?.value || '').trim()
+    }))
+    .filter(v => v.description !== '');
 }
 
 function togglePasteZone(show) {
@@ -917,7 +967,17 @@ function parsePasteItems() {
   if (!lines.length) { showToast('ไม่พบข้อความ', 'warn', '⚠️'); return; }
   const rows = document.getElementById('itemRows');
   [...rows.querySelectorAll('.item-input')].forEach(ta => { if (!ta.value.trim()) ta.closest('.item-row').remove(); });
-  lines.forEach(line => addItemRow(line));
+  lines.forEach(line => {
+    // รองรับ tab-separated: "CODE\tDescription" หรือ description อย่างเดียว
+    const tabIdx = line.indexOf('\t');
+    if (tabIdx > 0) {
+      const ref = line.slice(0, tabIdx).trim();
+      const desc = line.slice(tabIdx + 1).trim();
+      addItemRow(desc, ref);
+    } else {
+      addItemRow(line, '');
+    }
+  });
   togglePasteZone(false);
   updateItemNums();
   showToast(`เพิ่ม ${lines.length} รายการแล้ว ✓`, 'success', '✅');
@@ -1030,18 +1090,33 @@ function deptBadgeHtml(dept) {
   return `<span class="dept-badge ${deptColorClass(dept)}">${escHtml(dept)}</span>`;
 }
 
+function doCopy(text, onSuccess) {
+  navigator.clipboard.writeText(text)
+    .then(() => { if (onSuccess) onSuccess(); showToast('Copy แล้ว ✓', 'success', '📋'); })
+    .catch(() => {
+      const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+      if (onSuccess) onSuccess(); showToast('Copy แล้ว ✓', 'success', '📋');
+    });
+}
+
+function copyAndFlash(el, text, isRow = false) {
+  doCopy(text, () => {
+    if (!el) return;
+    const orig = el.style.background;
+    el.style.transition = 'background 0.08s';
+    el.style.background = isRow ? 'rgba(52,199,89,0.15)' : 'rgba(52,199,89,0.22)';
+    if (el.classList) { el.classList.add('copied'); setTimeout(() => { el.classList.remove('copied'); el.style.background = orig; }, 600); }
+    else setTimeout(() => el.style.background = orig, 600);
+  });
+}
+
 function copyCell(text, tdEl) {
-  const doCopy = () => {
+  doCopy(text, () => {
+    if (!tdEl) return;
     tdEl.style.transition = 'background 0.08s';
     tdEl.style.background = 'rgba(52,199,89,0.22)';
     setTimeout(() => tdEl.style.background = '', 550);
-    showToast('Copy แล้ว ✓', 'success', '📋');
-  };
-  navigator.clipboard.writeText(text).then(doCopy).catch(() => {
-    const ta = document.createElement('textarea');
-    ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
-    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-    doCopy();
   });
 }
 
@@ -1125,10 +1200,10 @@ async function submitTicket() {
   const name = document.getElementById('senderName').value.trim();
   if (!name) { showToast('กรุณาใส่ชื่อ', 'warn', '⚠️'); return; }
   const dept = document.getElementById('senderDept').value;
-  const descs = getItemValues();
-  if (!descs.length) { showToast('กรุณาเพิ่มรายการอย่างน้อย 1 รายการ', 'warn', '⚠️'); return; }
+  const itemObjs = getItemValues();
+  if (!itemObjs.length) { showToast('กรุณาเพิ่มรายการอย่างน้อย 1 รายการ', 'warn', '⚠️'); return; }
 
-  const items = descs.map(d => ({ description: d, code: '' }));
+  const items = itemObjs.map(v => ({ ref_code: v.ref_code, description: v.description, code: '' }));
   const token = genToken();
   const btn = document.querySelector('#screenSender .btn-purple');
   btn.disabled = true; btn.innerHTML = 'กำลังส่ง...';
@@ -1136,7 +1211,7 @@ async function submitTicket() {
   const { data, error } = await sb.from('task_tickets').insert({
     sender_name: name,
     sender_token: token,
-    message: `${descs.length} รายการ`,
+    message: `${itemObjs.length} รายการ`,
     items,
     attachments: [],
     status: 'pending',
@@ -1165,7 +1240,7 @@ async function submitTicket() {
   myTokens.push({ id: data.id, token, name });
   saveTokens();
   initItemRows();
-  showToast(`ส่งรายการเรียบร้อย! #${data.ticket_ref || data.ticket_no}${dept ? ' [' + dept + ']' : ''} (${descs.length} รายการ)`, 'success', '✅');
+  showToast(`ส่งรายการเรียบร้อย! #${data.ticket_ref || data.ticket_no}${dept ? ' [' + dept + ']' : ''} (${itemObjs.length} รายการ)`, 'success', '✅');
   prependMyTicketCard(data, true);
 }
 
@@ -1218,6 +1293,9 @@ function buildTicketCardHTML(ticket) {
           const cmtBadge = cmts.length
             ? `<span class="td-cmt-badge" onclick="event.stopPropagation();toggleSenderItemCmt('${ticket.id}',${i})" title="ความคิดเห็น ${cmts.length} ข้อความ">💬 ${cmts.length}</span>`
             : '';
+          const refChip = item.ref_code
+            ? `<span class="ref-code-chip" onclick="event.stopPropagation();copyAndFlash(this,'${item.ref_code.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')" title="Copy Code อ้างอิง">${escHtml(item.ref_code)}</span> `
+            : '';
           const cmt2Html = cmts.length ? cmts.map(c=>`
             <div class="item-comment-bubble ${c.role}">
               <div class="item-comment-meta ${c.role}">${escHtml(c.author)} <span>${fmtTime(c.created_at)}</span></div>
@@ -1226,10 +1304,10 @@ function buildTicketCardHTML(ticket) {
           const myToken = myTokens.find(t=>t.id===ticket.id);
           const senderAuthor = myToken?.name || ticket.sender_name || 'ผู้ส่ง';
           return `
-          <tr onclick="copyCell('${item.description.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}',this.cells[1])" style="cursor:pointer">
+          <tr onclick="copyAndFlash(this.cells[1],'${item.description.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}',true)" style="cursor:pointer">
             <td class="td-no">${i+1}</td>
-            <td class="td-desc">${escHtml(item.description)}${cmtBadge}</td>
-            <td class="td-code" onclick="event.stopPropagation();${item.code?`copyCell('${(item.code).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}',this)`:''}" style="${item.code?'cursor:pointer':''}">
+            <td class="td-desc">${refChip}${escHtml(item.description)}${cmtBadge}</td>
+            <td class="td-code" onclick="event.stopPropagation();${item.code?`copyAndFlash(this,'${(item.code).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')`:''}" style="${item.code?'cursor:pointer':''}">
               ${item.code ? `<span class="code-chip">${escHtml(item.code)}</span>` : `<span class="code-pending">รอ</span>`}
             </td>
           </tr>
@@ -1445,6 +1523,8 @@ function renderWorkerDetail(id) {
 
   const items = Array.isArray(ticket.items) ? ticket.items : [];
   const isDone = ticket.status === 'done';
+  const isEditing = isDone && workerEditSet.has(id); // done แต่กำลัง re-edit
+  const isEditable = !isDone || isEditing;           // true = แสดง input
   const dept = ticket.department || '';
 
   const inner = document.getElementById('detailContentInner');
@@ -1470,8 +1550,8 @@ function renderWorkerDetail(id) {
     table.className = 'worker-items-table';
     table.innerHTML = `<thead><tr>
       <th class="wt-no">#</th>
-      <th>รายละเอียด</th>
-      <th style="width:170px;text-align:center">Code AX</th>
+      <th>รายละเอียด <span style="font-weight:400;opacity:0.6;font-size:10px">(คลิก copy)</span></th>
+      <th style="width:170px;text-align:center">Code AX <span style="font-weight:400;opacity:0.6;font-size:10px">(คลิก copy)</span></th>
       <th style="width:40px;text-align:center" title="ความคิดเห็น">💬</th>
     </tr></thead>`;
     const tbody = document.createElement('tbody');
@@ -1484,29 +1564,35 @@ function renderWorkerDetail(id) {
       // ─── Main item row ───
       const tr = document.createElement('tr');
       tr.id = `wrow_${id}_${i}`;
-      if (isDone) tr.className = 'wt-done';
-      tr.title = 'คลิกเพื่อ Copy';
+      if (isDone && !isEditing) tr.className = 'wt-done';
+      if (isDone && isEditing) tr.className = 'wt-done edit-unlocked';
+      // คลิก row = copy description เท่านั้น (ไม่ติด code)
       tr.onclick = (e) => {
-        if (e.target.closest('.code-input') || e.target.closest('.fill-handle') || e.target.closest('.wt-cmtbtn')) return;
-        const codeEl = document.getElementById(`code_${id}_${i}`);
-        const codeVal = codeEl ? codeEl.value.trim() : (item.code || '');
-        const text = codeVal ? `${item.description}\t${codeVal}` : item.description;
-        navigator.clipboard.writeText(text).then(() => {
-          tr.querySelectorAll('td').forEach(td => { td.style.transition='background 0.1s'; td.style.background='rgba(52,199,89,0.18)'; });
+        if (e.target.closest('.code-input') || e.target.closest('.fill-handle') ||
+            e.target.closest('.wt-cmtbtn') || e.target.closest('.code-done') ||
+            e.target.closest('.ref-code-chip')) return;
+        doCopy(item.description, () => {
+          tr.querySelectorAll('td:not(:last-child):not(.wt-code)').forEach(td => {
+            td.style.transition='background 0.1s'; td.style.background='rgba(52,199,89,0.18)';
+          });
           setTimeout(() => tr.querySelectorAll('td').forEach(td => td.style.background=''), 600);
-          showToast('Copy แล้ว ✓','success','📋');
-        }).catch(() => {
-          const ta2=document.createElement('textarea'); ta2.value=text; ta2.style.cssText='position:fixed;opacity:0';
-          document.body.appendChild(ta2); ta2.select(); document.execCommand('copy'); document.body.removeChild(ta2);
-          showToast('Copy แล้ว ✓','success','📋');
         });
       };
+
+      // ref_code chip HTML
+      const refChipHtml = item.ref_code
+        ? `<span class="ref-code-chip" id="refchip_${id}_${i}" onclick="event.stopPropagation();copyAndFlash(this,'${item.ref_code.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}');return false;" title="Copy Code อ้างอิง">${escHtml(item.ref_code)}</span><br>`
+        : '';
+
+      // Code cell: click to copy (only real code, not OK)
+      const codeForCopy = (item.code && item.code !== 'OK') ? item.code : '';
+
       tr.innerHTML = `
         <td class="wt-no">${i+1}</td>
-        <td class="wt-desc">${escHtml(item.description)}</td>
-        <td class="wt-code">
-          ${isDone
-            ? `<div class="code-done">${escHtml(item.code||'—')}</div>`
+        <td class="wt-desc" style="cursor:pointer" title="คลิก copy รายละเอียด">${refChipHtml}${escHtml(item.description)}</td>
+        <td class="wt-code" ${!isEditable && codeForCopy ? `onclick="event.stopPropagation();copyAndFlash(this,'${codeForCopy.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}');return false;" style="cursor:pointer" title="คลิก copy Code"` : ''}>
+          ${!isEditable
+            ? `<div class="code-done" style="${codeForCopy?'cursor:pointer':''}">${escHtml(item.code||'—')}</div>`
             : `<div class="fill-wrap">
                 <input type="text" class="code-input${item.code?' filled':''}"
                   id="code_${id}_${i}" value="${escHtml(item.code||'')}" placeholder="—"
@@ -1546,7 +1632,7 @@ function renderWorkerDetail(id) {
           <button class="btn btn-amber btn-sm" onclick="addItemComment('${id}',${i},'worker','คนทำงาน')">ส่ง 💬</button>
         </div>`;
       cmtTr.innerHTML = `<td colspan="4" class="wt-cmts-cell">
-        <div class="wt-cmts-inner">${threadHtml}${isDone?'':inputHtml}</div>
+        <div class="wt-cmts-inner">${threadHtml}${inputHtml}</div>
       </td>`;
       tbody.appendChild(cmtTr);
     });
@@ -1573,9 +1659,34 @@ function renderWorkerDetail(id) {
 
   const replyArea = document.getElementById('workerReplyArea');
 
-  if (isDone) {
-    replyArea.innerHTML = `<div style="font-size:12px;color:var(--text3);text-align:center;padding:4px 0">✅ งานนี้เสร็จสมบูรณ์แล้ว</div>`;
+  if (isDone && !isEditing) {
+    // ─── Done + ไม่ได้กำลัง edit ───
+    replyArea.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="font-size:12px;color:var(--green);font-weight:600;display:flex;align-items:center;gap:5px">
+          ✅ งานนี้เสร็จสมบูรณ์แล้ว
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="enterWorkerEditMode('${id}')">
+          ✏️ แก้ไขอีกครั้ง
+        </button>
+      </div>
+      <div style="font-size:11px;color:var(--text3)">กด "แก้ไขอีกครั้ง" เพื่อแก้ Code หรือเพิ่ม Comment</div>`;
+
+  } else if (isDone && isEditing) {
+    // ─── Done + กำลัง re-edit ───
+    replyArea.innerHTML = `
+      <div class="edit-mode-banner">
+        ✏️ <span>โหมดแก้ไข — แก้ Code ได้ แล้วกด "บันทึก"</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:2px">
+        <button class="btn btn-ghost btn-sm" onclick="cancelWorkerEdit('${id}')">ยกเลิก</button>
+        <button class="btn btn-purple" style="flex:1" onclick="saveWorkerEdit('${id}')">
+          💾 บันทึก
+        </button>
+      </div>`;
+
   } else {
+    // ─── ยังไม่ done ───
     replyArea.innerHTML = `
       <div style="display:flex;gap:8px;margin-top:2px">
         ${ticket.status === 'pending' ? `<button class="btn btn-ghost btn-sm" onclick="setInProgress('${id}')">⚙️ รับงาน</button>` : ''}
@@ -1602,7 +1713,53 @@ function codeKeyNav(e, id, idx, total) {
 }
 
 // ─── DRAG FILL ───
-let fillState = null;
+function enterWorkerEditMode(id) {
+  workerEditSet.add(id);
+  renderWorkerDetail(id);
+  showToast('เปิดโหมดแก้ไขแล้ว ✏️', 'info', '✏️');
+}
+
+function cancelWorkerEdit(id) {
+  workerEditSet.delete(id);
+  renderWorkerDetail(id);
+  showToast('ยกเลิกการแก้ไข', 'info', '↩️');
+}
+
+async function saveWorkerEdit(id) {
+  const ticket = workerTickets.find(t => t.id === id);
+  if (!ticket) return;
+  const items = Array.isArray(ticket.items) ? ticket.items : [];
+
+  // Sync values from DOM inputs
+  items.forEach((item, i) => {
+    const input = document.getElementById(`code_${id}_${i}`);
+    if (input) item.code = input.value.trim();
+  });
+
+  const btn = document.querySelector('#workerReplyArea .btn-purple');
+  if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก...'; }
+
+  const codeList = items.map((it, i) => `${i+1}. ${it.code || '—'}`).join('\n');
+  const { error } = await sb.from('task_tickets').update({
+    items,
+    worker_reply: codeList,
+    replied_at: new Date().toISOString()
+  }).eq('id', id);
+
+  if (error) {
+    showToast('บันทึกไม่สำเร็จ: ' + error.message, 'warn', '❌');
+    if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึก'; }
+    return;
+  }
+
+  updateLocalTicket(id, { items, worker_reply: codeList });
+  workerEditSet.delete(id);
+  renderWorkerQueue();
+  renderWorkerDetail(id);
+  showToast('บันทึกการแก้ไขเรียบร้อย ✓', 'success', '💾');
+}
+
+
 
 function startFill(e, id, total) {
   e.preventDefault();
@@ -1837,21 +1994,25 @@ function openEditTicket(id) {
     const editRows = document.getElementById('editItemRows');
     editRows.innerHTML = '';
     const items = Array.isArray(data.items) ? data.items : [{ description: '', code: '' }];
-    items.forEach(item => addEditItemRow(item.description));
+    items.forEach(item => addEditItemRow(item.description, item.ref_code || ''));
     document.getElementById('editModal').style.display = 'flex';
     setTimeout(() => document.getElementById('editSenderName').focus(), 100);
   });
 }
 
-function addEditItemRow(val = '') {
+function addEditItemRow(val = '', refCode = '') {
   const rows = document.getElementById('editItemRows');
   const div = document.createElement('div');
   div.className = 'item-row';
   div.innerHTML = `
     <span class="item-num">${rows.children.length + 1}</span>
-    <textarea class="item-input" rows="2" placeholder="รายละเอียดสินค้า..."
-      oninput="autoResize(this);updateEditItemNums()"
-      onkeydown="editItemKeyNav(event,this)">${escHtml(val)}</textarea>
+    <div class="item-desc-wrap">
+      <input type="text" class="item-ref-input" placeholder="Code อ้างอิง (ถ้ามี)" value="${escHtml(refCode)}"
+        onkeydown="if(event.key==='Tab'){event.preventDefault();this.closest('.item-row').querySelector('.item-input').focus()}">
+      <textarea class="item-input" rows="2" placeholder="รายละเอียดสินค้า..."
+        oninput="autoResize(this);updateEditItemNums()"
+        onkeydown="editItemKeyNav(event,this)">${escHtml(val)}</textarea>
+    </div>
     <button class="item-del" onclick="this.closest('.item-row').remove();updateEditItemNums()">✕</button>`;
   rows.appendChild(div);
   updateEditItemNums();
@@ -1881,11 +2042,15 @@ async function saveEditTicket() {
   const name = document.getElementById('editSenderName').value.trim();
   if (!name) { showToast('กรุณาใส่ชื่อ', 'warn', '⚠️'); return; }
   const dept = document.getElementById('editDept').value;
-  const descs = [...document.querySelectorAll('#editItemRows .item-input')].map(ta => ta.value.trim()).filter(v => v);
-  if (!descs.length) { showToast('กรุณาใส่รายการอย่างน้อย 1 รายการ', 'warn', '⚠️'); return; }
+  if (!newItems.length) { showToast('กรุณาใส่รายการอย่างน้อย 1 รายการ', 'warn', '⚠️'); return; }
   const { data: current } = await sb.from('task_tickets').select('items').eq('id', id).single();
   const oldItems = Array.isArray(current?.items) ? current.items : [];
-  const newItems = descs.map((desc, i) => ({ description: desc, code: oldItems[i]?.code || '' }));
+  const newItems = [...document.querySelectorAll('#editItemRows .item-row')].map((row, i) => ({
+    ref_code: (row.querySelector('.item-ref-input')?.value || '').trim(),
+    description: (row.querySelector('.item-input')?.value || '').trim(),
+    code: oldItems[i]?.code || '',
+    comments: oldItems[i]?.comments || []
+  })).filter(it => it.description);
   const btn = document.querySelector('#editModal .btn-purple');
   btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
   const { error } = await sb.from('task_tickets').update({
