@@ -1102,17 +1102,6 @@ function _openSettingsPanel(overlay) {
           <div class="settings-section-label">🕐 การแสดงเวลา</div>
           <div class="settings-row">
             <div>
-              <div class="settings-row-label">แสดงแบบ "เมื่อสักครู่"</div>
-              <div class="settings-row-sub" id="timePreviewSub">${useRelativeTime ? 'เช่น 5 นาทีที่แล้ว' : 'เช่น 21 เม.ย. 09:14'}</div>
-            </div>
-            <label class="toggle-wrap">
-              <input type="checkbox" id="relativeTimeToggle" ${useRelativeTime ? 'checked' : ''}
-                onchange="toggleRelativeTime(this.checked)">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="settings-row">
-            <div>
               <div class="settings-row-label">แสดงเวลางานเสร็จ + ระยะเวลา</div>
               <div class="settings-row-sub">✅ เสร็จ: ... &nbsp; ⏱ 17 นาที &nbsp;ในคิวทั้งหมด</div>
             </div>
@@ -1143,8 +1132,6 @@ function closeSettings() {
 function toggleRelativeTime(val) {
   useRelativeTime = val;
   localStorage.setItem('dispatch_relative_time', val ? '1' : '0');
-  const sub = document.getElementById('timePreviewSub');
-  if (sub) sub.textContent = val ? 'เช่น 5 นาทีที่แล้ว' : 'เช่น 21 เม.ย. 09:14';
   if (currentMode === 'sender') { loadMyTickets(); if (currentSenderTab === 'all') renderAllQueue(); }
 }
 
