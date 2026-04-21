@@ -569,7 +569,8 @@ body {
 
       <div class="form-group">
         <div class="form-label">ชื่อของคุณ</div>
-        <input type="text" class="form-input" id="senderName" placeholder="เช่น สมชาย, แผนก A">
+        <input type="text" class="form-input" id="senderName" placeholder="เช่น สมชาย, แผนก A"
+          oninput="localStorage.setItem('dispatch_sender_name', this.value)">
       </div>
 
       <!-- ─── DEPARTMENT FIELD ─── -->
@@ -1196,6 +1197,9 @@ function enterSender() {
   currentMode = 'sender';
   showScreen('screenSender');
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  // Restore saved name
+  const savedName = localStorage.getItem('dispatch_sender_name');
+  if (savedName) document.getElementById('senderName').value = savedName;
   initItemRows();
   loadMyTickets();
   loadAllQueue();
