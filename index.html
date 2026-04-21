@@ -444,7 +444,92 @@ body {
 .ref-code-chip:hover { background:rgba(0,122,255,0.16); }
 .ref-code-chip.copied { background:rgba(52,199,89,0.2); border-color:rgba(52,199,89,0.4); color:var(--green); }
 
-/* ─── RESIZE HANDLE ─── */
+/* ── SPLASH ── */
+#splash{
+  position:fixed;inset:0;z-index:99999;
+  background:#ffffff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:opacity .5s ease;
+}
+#splash.hide{opacity:0;pointer-events:none;}
+
+.splash-logo{
+  display:flex;align-items:center;justify-content:center;
+  animation:logoIn .8s cubic-bezier(.34,1.4,.64,1) both;
+}
+@keyframes logoIn{from{opacity:0;transform:scale(.7) translateY(20px)}to{opacity:1;transform:none}}
+
+.splash-sub{
+  font-size:11px;color:#a1a1a6;
+  letter-spacing:3px;text-transform:uppercase;
+  margin-top:6px;
+  animation:fadeUp .7s ease .45s both;
+  font-family:-apple-system,'SF Mono','DM Mono',monospace;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+.splash-bar{
+  width:140px;height:2px;
+  background:rgba(0,0,0,.08);
+  border-radius:2px;
+  margin-top:36px;
+  overflow:hidden;
+  animation:fadeUp .7s ease .6s both;
+}
+.splash-bar-fill{
+  height:100%;width:0;
+  background:linear-gradient(90deg,#007AFF,#00a2ff);
+  border-radius:2px;
+  animation:barFill 1.4s cubic-bezier(.4,0,.2,1) .4s both;
+}
+@keyframes barFill{from{width:0}to{width:100%}}
+
+.splash-dots{
+  display:flex;gap:6px;margin-top:16px;
+  animation:fadeUp .5s ease .8s both;
+}
+.splash-dots span{
+  width:4px;height:4px;border-radius:50%;
+  background:rgba(0,0,0,.15);
+  animation:dotPulse 1.2s ease infinite;
+}
+.splash-dots span:nth-child(2){animation-delay:.2s}
+.splash-dots span:nth-child(3){animation-delay:.4s}
+@keyframes dotPulse{0%,100%{opacity:.25;transform:scale(1)}50%{opacity:1;transform:scale(1.4);background:#007AFF}}
+
+/* ── TOPBAR DATETIME ── */
+.topbar-datetime {
+  display:flex;flex-direction:column;align-items:flex-end;gap:0;
+  font-family:-apple-system,'Sarabun',sans-serif;
+  line-height:1.2;
+}
+.topbar-date { font-size:11px;color:var(--text2);font-weight:500;white-space:nowrap; }
+.topbar-time { font-size:13px;color:var(--text);font-weight:600;font-variant-numeric:tabular-nums; }
+
+/* ── WELCOME DATETIME ── */
+#welcomeDateTime {
+  position:fixed;top:14px;right:18px;z-index:200;
+  display:flex;flex-direction:column;align-items:flex-end;
+  font-family:-apple-system,'Sarabun',sans-serif;
+  line-height:1.3;
+}
+#welcomeDateTime .wd-time { font-size:14px;font-weight:700;color:#1d1d1f;font-variant-numeric:tabular-nums; }
+#welcomeDateTime .wd-date { font-size:11px;color:#6e6e73;font-weight:500;white-space:nowrap; }
+#welcomeDateTime .wd-week { font-size:10px;color:#aeaeb2; }
+
+/* ── DEPT MANAGER PASSWORD ── */
+.dept-pass-overlay {
+  position:fixed;inset:0;background:rgba(0,0,0,0.3);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  display:flex;align-items:center;justify-content:center;z-index:1100;
+}
+.dept-pass-box {
+  background:white;border:1px solid var(--border);border-radius:14px;
+  padding:24px;width:280px;display:flex;flex-direction:column;gap:12px;
+  box-shadow:var(--shadow-lg);animation:modalIn 0.2s ease;
+}
+
+
 .resize-handle {
   width: 5px; flex-shrink: 0; cursor: col-resize;
   background: transparent; position: relative; z-index: 10;
@@ -495,6 +580,23 @@ body {
 </style>
 </head>
 <body>
+<!-- ── SPLASH ── -->
+<div id="splash">
+  <div class="splash-logo">
+    <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCABYAWoDASIAAhEBAxEB/8QAHQABAAIDAQEBAQAAAAAAAAAAAAcIAQYJBQQDAv/EAEwQAAEDAwMBBgIECAgNBQAAAAECAwQABREGByESCBMxQVFhFIEJIjJxFSNCUnKCkbIWMzQ3YnShsSQmNjhDRFNzdZKWs+MoNVS04f/EABoBAQADAQEBAAAAAAAAAAAAAAACBQYEAwf/xAAuEQEAAgECAwUIAgMAAAAAAAAAAQIDBBEFEiEGMTJBURMiI2FxgaHhB7EWwdH/2gAMAwEAAhEDEQA/ALl0pSgUpSgUrClJTjqUBnwyazQKUpQKUpQKUpQKUpQKUpQKUpQKUpQKUpQKUpQKUpQKUpQKUpQKUpQKUpQKUpQKUpQKUpQKUpQKUpQKUpQKUrRd+dQXTS+1l2vdmfSxNYLAbWUhQAW+2hXB9lGpVrNpiIRveKVm0+TbLpdrfbUdUuShB8k5yo/Ic1qV31s8slu2sBtP+0c5PyHgP7ar9pveSHMWlGpYy4z6j9eU11ONk+pTyofLqqR7XcYN0iJl26WxLYV4LaWFAexx4H2PNVmunV4Z2tXlj1/aqnX+18HQ1bMlyYC35El11wLSQpSvDny9PlX46c3Av9n6Glv/AB0YH+LkElQHsrx/bmv51L/7S5+kn++tUz4DmsxqM+XFm5qWmJc1st633rKd9NbiWC7lDL7pt8pX+jfOEk+yvD9uD7VuCFJWkKSoKB5BBqAdN6E1DeSlwRTCjEZ76QCnP3J8T/d71MujbCNO2VFuEt2ThRUVL4AJxwkeQ9q0XDdVqc0fFp09e78LTS5st/HX7vapSlWzsKUpQKVjI9RWcj1oFKZHrTI9aBSmR60oFKUoFKUyPWgUpSgUpSgUpSgUpSgUpSgUpSgUpSgUpSgUpSgUpketKBSlKBSlKBUY9qT+Y+/fpxf/ALLVSdUe9oq1XG97RXa12mG7MmyHYqWmWxlSj8S0T9wABJJ4ABJr1wztkrM+rx1ETOK0R6SozXoadfvMe7M/wfXNTcHD0NJiBRccz+SEjlX3YqVrBs3BhEO6uvJceSrmBbCFHjyW8RgehCQfvqQbSiBZIqomnrZFszChhfwwPeufpun66vmav75q2jliN/6ZKMfJ452edpKPqNy1JRuVMtljYJSA4o/4SeeC42kFCAfUlOPMVNWkNLaZtsZmXbG2pqynqRMWoOFWfMEcD5YqCNeHOm3/ANNH7wrUNN6lvunHy9Zbm/EJOVISctq+9B+qf2Zrjx9msGoic+OIi306fp6Y+LU0+Ta9N49fNc0eFZqD9Ib7tL6Y+qLd3PgPiogKkn3Ug8j5E/dUw2G82y+25FwtM1qXGUcBbZzg+YPofY1w6jRZtNO2Su39NHpdfg1UfDtv8vN99KUrldiC+1nvi5tNZIduskdmTqO6JUpjvhluM0nguKHmcnCR4ZBJ8MGqOnrn2m9z23btYbxrGfFDhQp+LNMSP1eJSMKQjjPgPCpA+ke0/dE6y09qcRnV2tyB8EXgklCHkuLX0k+RIXx69J9K/Psz9p/Tug9v4WitVWSclqApfw82ClLnWlbilkLQSkggqPIJyMcDHIax/ADtb/8Ay9a/9Sf+apl3g0vvtO2b26g6UkaiRqGJFUL2qNd+5dK+hGO8c7wdZyFc5PnUs6E362o1m+zEtOrobU15SUIizQqM4pZ8EjvAAok8YSTUnCg51X7S3atsVlmXm63fWsaBCZU/JeOpSoNtpGVHAeJOAPKtO0PqffLW1+RYtL621hcLittTiWU351BKUjJOVOAf210L7Q/8xWt/+Byv+2apH2CP84SJ/UJP7lB6A0B2vc/y7W3/AFN/56vzGe/B9gRJubvd/DxguS44rPT0pyok/I819tV67d+4KtJ7TDTsF9Tdy1ItUYFCsFMZIBePzylGPRZoKr7i9ovcm865vFysGrrta7Q9KUYURpYSG2RwjjyJABPuTV7Ozrr1G4+01n1Gt5tyf3fw9xSnjokowF8eXVwsD0UKots9stM1vsvrfWaY6lyLehKbSlKjlxxvDj/A8fxeEj1J9q3T6PzcL8Abgy9DXCQUwb8jrihXgmU2CQB6dSOoe5SkUF9nP4tX3VzFTvJvVcdTfgi1a4v78qRL+HjMNvfWWtS+lKR7k4FdOnP4tX3Vyi2zmRLdvjp+fPkNxokbULDrzzisJbQl8EqJ8gAM0ErPS+1/DbL6xrspTycNd4f+UA5/ZXqbUdrXXWnr63atx2xeLcHu7kumMGZkbyPCQlKsHkhQyeeatbP302ggxFyX9wLEpCBkhl/vVn7koBUfkK59dovWFo3F3lu2odNQXG4ctbTTALfSt8pQlHWUjzURx54xnmg6jW+ZFuECPPhPtyIslpLrLrZylaFDKVA+YIINRV2uNeTdv9lblc7TKXFu0t1uFBeR4trWcqUPcISvHvitv2as0/T20+lbHdElM6Dao7MhGc9Cw2Mpz7Hj5VU36SDVSpGpNOaOYkEtRI658hpJ47xZ6EZ9wlKsey/eg1js6do7WNv3Pt7GvNUT7pYZ/wDgr3xKkkR1KI6Xs8YCT48/ZKvEgV0GSQQCPA1yy1ztLe9M7TaR3CU28uFe2lGQkp/kyytRa/VW2AofcfUVc3sS7qDXe3KdPXST133T6EMOdX2no/g057kAdJ+4E+NBOl7ucGzWeZd7lIRGhQ2FvyHVnAQhIJUT9wFc39wu0juXe9bXS52HVN0s9pekH4OE0sANNDhOePtEDJ9yamv6QTdX4eGxtfZpSg6+EybwUY4b8WmSfHk4WfDgI8iarlK2nvMTYRrdKWh5tiRc0RY7JTwqOUq/HnzwXAEjw9fMUHSHZvVKda7Xad1P1dTs6C2p/wBngOlwfJYVW21Vr6OjVS7jt1etKSX+tdnmh6OknlLLwJwPbrSs/rfdVpaDw9falgaO0ZdtT3NxKItujLfVk46iB9VI91Kwke5Fc2z2iN3jf/wp/DO5BHxXxHwgX+Jx1dXd9OPseWPSrBfSJbh/DWq17cW+QO9lETrklPiG0khpBPuoKVjx+on15hFWyksdlpO6HcLTPFxLqkKJGYB/FBQHr3n1v0Tn7w6IaA1NA1lou0aothPwtyiofQlX2kEjlBx5pOQfcGvWnKUmE+pJIUG1EEeXFVG+jr3AMi2Xbbqe+ouRSZ9uClZ/FqIDqB6YUUqx/TVVuLj/ACCR/ulf3UHMay7w75Xy9R7PZ9baimTpTgajsNPZU4o+AHFbvIndr63tGS7/AA76EDJwx3vh/RAP91Rl2erhBtO9+lbnc5TMSFGuTbr77qglDaAclRJ8BXQy6777P26G5Ke19ZHEoGSlh7vln7koBJ+QoKu7NdrnV1pvke0blIauttW73b01LAZlRsnGSEgJWkeYwFePJ8Ks72nNQXKybBaj1Bp65Ow5jMdlyNKjrwpPU82MpPuCf21zz3o1BD3C3lvV701bnUMXaalMOOG8OOHpSgHpH5S1Dqx6qq7+/lql2LsWTLJPWFy7fY4EV9QOQVtqZSo5+8GginsNbla81jurcrbqjVNyu0NqzuPIZkO9SQsOtAKx64J/bU59pbeu1bSaYw13M3Us1BFvgqUcDy75zHghJ8uCo8DHJFHezRubC2o1LftSyIypcpyzORoMfB6XH1OtFIUfJICSSfQYHJFfvt/pHXXaK3Wky5st1wuuB26XJxJ7qK1nhKR4ZwMIQPTyAJAb52f73v7vBrMxY+4V9h2iOsOXOclYCGUkk9CABjrVg4SOB4+Aq+9uiiFAYiB998MtpR3r7hW4vAxlSj4k+Zrw9uNFWDQGkommtOQxHhRk8k8rdWftOLPmo+Z+QwABWx0ClKUChAIwaUNBpt+0Fb5anH4Di4jyiVdJPU2T93iPkflWi3rTl3tJKpMVSmh/pW/rI/b5fPFTYa+efMhwYq5M6SzHYQMrcdWEpA9ya6cervTv6wr83DMWafdjafl/xWfXf+Tb/wCmj94VotrttwusoRLZCfmPn8hlBUR7n0HueKmjU+pdt9V35NgtUF24vq6lrdYWpiOro5wVDlWT5pHP51fHOenRY/wLcZq2Q/8AYRGw20r78faPuomvLW9udLwnDyVpN7+nl95Sw/x/rtTniM8+zrt598x9GqW3QMeKevUl1S2of6nAKXXfuU59hB/5qlTaCYzGu34EtcNuFbUsOO90FlxS3CUDrUo8k448hjyrQ63DaH/K8/1Rz95FYL/MuJcY1+LHlty0m3hju+/q2tOyfD+E6PJfHXe+3inv/SYaxmnnStyzD475aLXfLY9bLzbotwhPDDseS0lxtY90kYqCtV9kTaS8da7fHuticOSPgpnUnPul0L49hitc7W+9e422+4UCzaQREXCftiJK+9hF5XeFxxJ5B4GEjioZV2qt9HB0IYt4UeAU2kk/30GqdpjZSRs5eLYlq9IuluuaXDHcU33bqFNlPUlSckEYWnCgeeeBjm4HYe1dedW7Jsm9yVy5FsmuQG33Dla20pQpHUfMgL6c+gFVCc0vvlvvq5ubcrZd575SECXMjmNEjI9ASAhI88JBUfHBq/GxO3MLa7bqDpaK/wDFPIKnpcjGO+fV9pQHkOAAPQDzoMdof+YrW/8AwOV/2zVI+wR/nCRP6hJ/cq8G/wAw9J2R1pHjsuPPOWWSlDbaSpSiWzgADkmqadhvTeorXv1ElXKw3WFH+BkDvZERxtGSjgZUAKDoDXMbtW68VuLvTcpcNanYEFX4Ot6UnqCkNkgqTj89ZUoexFXs7TuqLrpbZ67v2GDMmXaen4GImK0ta0KcBCnPqgkdKQog+oHrVTOxNtTd7nvA3f8AUVklw4Fha+KSJkVSO8kH6rQAUBnB6l58igetBr232+e7GhdIRNLafscBq2xUqCUuWta1LKlFSlKOeSSTUTM3G72LVke/x2F2qezKEyMENlAaUF9SekK5wCMc58K694GPAVWnt77bSdVaEgaqstvclXWyvd26hhBU47HcIBAAGVFK+kgeQUs0E47aash6529tGqoOA1cYqXSn8xfgtH6qgofKuZm0yEOb+aZbcSFIVqSOFJIyCDIHFWh7AN61Fa4d60HqCz3iGyMz7e5KiuIbT4JdbBUMDP1VAfpmq87U6T1TH320zLf01eWo6NRR1qdXBdShKRISSokpwB70Gz9sDZBzbjUp1Fp+Ms6VubhLYSMiE8eS0eOEnxR7ZHlkyD2BbVtXdn3HZVq7zXVuUp5tcx3rQWyeHGUcAKT4HIKhwQecC3+rtO2nVmmZ2nb5Ebl2+cyWnm1jyPgQfJQPII5BAIrnNrfbTcbZfd9Dmmol1lqgvJlWy4xIq3EutZOArpBGcZSpB8efEEZDpgSAM+QrlxvXc5W5/aLu5teHl3K7Jt8DKsBSUqDLZz5A4B+dXha3VuF+7Ot61dDsNzgaiiwVsrty4bneNyyOlJQkpytBUpKgR5cHkGqo9jzbi/XDfu0XC+2O5Q4drS5PWuVEcbStaRhsAqA561JV+qaC8mpNvrHqDaxe309lKrcbeiG2enlroSA2tPopJSCPurnPp666r7Pu9ry1x8z7U8uPJYUVJblsK9/HpUOlaT69J8q6kVBnaS7PFt3cuduvMW7N2S6RkFl9/wCGLvxDXikEdScFJzg+iseQoKW7XaYv++u9obuDzri7hJVOu8pKeGmerKyPTyQkepSKv/vPomLeNhr9oyzwWmWm7UW4EdtOEpUyAppIHlyhIry+zbspbtnrJcGEzkXW6XB4Kfm9x3Z7tP2GwMnAByfHkn2FSy4kKQUnwIoOb3Yf1WnTG/dviSFlEa9MuW5wk8BasLb491oSn9aujF4uES02mXdJ7yWIkRhb77ivBCEpKlH5AGuZe4mhNZaG3suq9Pafu7qbVeTJtz7MFxxHSHA40cgYOAU5+dWr7Yus73K2Qtdn03aLu9M1Sy25ITGiuKUxG6UrWheBlJUVJTg+I6qCle6urLnuTuXeNTOtvPO3CSpUdkJyptlPDaAB+agAfIn3qSkb97tp0UNHfwftpsnwH4P+GNqWQWOjo6c9Wfs+fjUm/R/bXXGLf7xrvUVolQlREfBW5MpotqK1AKcWEqweE9KQfA9avQ4ucUjPhQcm9qNVz9udzrNqcMvIXb5KVPsHKVONKGFo59Uk/wBhrqs1Pi3TTibnBeS/ElxA+w4k5C0KR1JI9iCKqJ9IFtjOm3mz660/a5Ex2Sj4Ge3FYUtZUkFTbhCQSfq9SST+akVIXYp1FfZ2z0vSuorVcIU2w5ajmVHW2XY6wpSMdQGSkhSePABPrQU47NrDMnfnSUaS0h5l25IQ42tIUlaTkFJB4II4xW19rTZN/a/Vf4TszLi9K3NwmIsnq+Gc8Swo+3JST4geZBr4OzhpTVEPffSEuXpu8R47d0bK3XYLiUJGfEkpwBXRbXuk7NrbSc/TN/iiRAmt9Kx+UhXilaT5KBwQfagq12BLVtVc4js5m19Wu7aCp5Ux3vcNk4DrCcAJHgkkAqTnGcK5mftij/036v8A6uz/AN9uqT3jQu6GyW8AdsNvucqTbXg7DnRIa3GpLJzjqCcjChkKSTxz7GrYbt6qe3L7I2oblBsdziXJ5hpqRbHIznfNPB5oqSAUgqGDkKAwR75ACmvZ/wBsFbr3292CNN+DuEa0rmQVK/i1OpcbSEr4z0kKIyPA4POMH1dp9wNadn3cmXBnQn0NJdDN3tL+UpdSPBSfIKAOUrHBB8wak76P3T1/tO8N0kXWyXKCyqyOJS5JirbSVd8ycAqAGeDViO0tsZZt2LD8RHDMDU0Rs/BTunhY8e6dx4oPkeSknI8wQkLbzWVg15paLqPTc1MqDIH3LbUPtIWn8lQ8x8xkEGthrm3s7d93Nj9wJKG9KXx+Il7uLrbxEcU0+lJ+0hSQR1DxSsZHPmCQehmjdRQNVabh323IlNsSkZ7qUwpl5tQOChaFchQII9PMEgg0HsUpSgUJwM0pQQDuD2gFxpEm26Wtf41pwtGXMH1cg4PSgHP7SPuqENU6p1BqeX8RfbrImkK6kIWrDaD/AEUD6qePQZq2+udr9IauDr0+3iPOX/rkXDbufInyV+sDUFa52I1RZiuTYlovkQHIQgdD6R+iThWPY5PpVLrMOpnrvvHyfWOyvFez+KK1ins8nrbrv9LeX4avssP8fo3+5d/dqfloStJStIUk+IIyDUD7RRpEPchqJLYdjyGmnQ406gpUg9PgQeRViLdaZ04gtMlLZ/LXwmsrrMGTLmitK7zs9O1mfHXWRfmjblj/AG1uZY4r2VMksLPpyn9lettfapsTVS33GipgRlp7xPKclScD+w1uVt0xFawuWovq/N8E/wD7XvMtttICGkJQkDACRgCrHhvZu2PPXUZPdms77QxGs45z4rYadYnpvL+/OsVmlbNmmClJOSkE06Efmj9lZpQKUpQKYFKUClKUClKUCmB6UpQKEA+NKUClKUClKUClKUGClJ8QDWcD0pSgUpSgEZoAB4ClKAAB5UpSgxgelZwKUoGB6UpSgxgegrOKUoFKUoFKUoBrHNKUHyv2y3PzETHoEVyS2CEPLaSVpB8gcZFfWAAMAAClKjyxvulNpnpMlYwaUqSJzTmlKBzTmlKBzTmlKBzTmlKBzTmlKBzTmlKBzTmlKBzTmlKBzTmlKBzTmlKBzTmlKBzTmlKBzTmlKBzTmlKBzTmlKBzTmlKBzTmlKBzTmlKBzWaUoP/Z" alt="Starmark" style="height:80px;width:auto;display:block;mix-blend-mode:multiply">
+  </div>
+  <div class="splash-sub">Task Dispatch · Code AX</div>
+  <div class="splash-bar"><div class="splash-bar-fill"></div></div>
+  <div class="splash-dots"><span></span><span></span><span></span></div>
+</div>
+
+<!-- ── WELCOME DATETIME ── -->
+<div id="welcomeDateTime">
+  <div class="wd-time" id="wdTime">--:--</div>
+  <div class="wd-date" id="wdDate"></div>
+  <div class="wd-week" id="wdWeek"></div>
+</div>
+
 
 <!-- ─── WELCOME ─── -->
 <div id="screenWelcome" class="screen active">
@@ -555,6 +657,7 @@ body {
     </span>
     <span class="mode-pill sender">ส่งงาน</span>
     <div class="topbar-right">
+      <div class="topbar-datetime"><div class="topbar-time" id="senderClock"></div><div class="topbar-date" id="senderDate"></div></div>
       <div class="dot-live"></div>
       <button class="btn-back" onclick="goHome()">← กลับ</button>
     </div>
@@ -580,10 +683,21 @@ body {
           <span style="font-size:10px;color:var(--accent);cursor:pointer;font-weight:600" onclick="openDeptManager()">⚙️ จัดการแผนก</span>
         </div>
         <div class="dept-row">
-          <select class="dept-select" id="senderDept">
+          <select class="dept-select" id="senderDept"
+            onchange="localStorage.setItem('dispatch_sender_dept', this.value)">
             <option value="">— เลือกแผนก —</option>
           </select>
         </div>
+      </div>
+
+      <!-- ─── SUBJECT FIELD ─── -->
+      <div class="form-group">
+        <div class="form-label" style="display:flex;align-items:center;justify-content:space-between">
+          <span>📌 หัวเรื่อง <span style="font-size:10px;color:var(--text3);font-weight:400">(ไม่บังคับ)</span></span>
+        </div>
+        <input type="text" class="form-input" id="senderSubject"
+          placeholder="เช่น โครงการ A, BO69-0277, งานพี่จ๋อม..."
+          oninput="localStorage.setItem('dispatch_sender_subject', this.value)">
       </div>
 
       <div class="form-group">
@@ -683,6 +797,7 @@ body {
     </span>
     <span class="mode-pill worker">รับงาน</span>
     <div class="topbar-right">
+      <div class="topbar-datetime"><div class="topbar-time" id="workerClock"></div><div class="topbar-date" id="workerDate"></div></div>
       <span id="workerPendingBadge" style="display:none" class="badge-count">0</span>
       <div class="dot-live"></div>
       <button class="btn-back" onclick="goHome()">← ออก</button>
@@ -751,6 +866,10 @@ body {
         <select class="dept-select" id="editDept" style="width:100%">
           <option value="">— เลือกแผนก —</option>
         </select>
+      </div>
+      <div class="form-group">
+        <div class="form-label">📌 หัวเรื่อง <span style="font-size:10px;color:var(--text3);font-weight:400">(ไม่บังคับ)</span></div>
+        <input type="text" class="form-input" id="editSubject" placeholder="เช่น โครงการ A, BO69-0277...">
       </div>
       <div class="form-group">
         <div class="form-label" style="display:flex;align-items:center;justify-content:space-between">
@@ -838,8 +957,50 @@ function renderAllDeptDropdowns() {
   renderDeptDropdown('editDept');
 }
 
-// ─── DEPT MANAGER ───
+const DEPT_MANAGER_PASS = 'admin999';
+
+// ─── DEPT MANAGER (with password) ───
 function openDeptManager() {
+  // แสดง password dialog ก่อน
+  const overlay = document.createElement('div');
+  overlay.className = 'dept-pass-overlay';
+  overlay.id = 'deptPassOverlay';
+  overlay.innerHTML = `
+    <div class="dept-pass-box">
+      <div style="font-size:15px;font-weight:700;color:var(--text)">🔐 จัดการแผนก</div>
+      <div style="font-size:13px;color:var(--text2)">ใส่รหัสผ่านเพื่อจัดการแผนก</div>
+      <div class="form-group">
+        <input type="password" class="form-input" id="deptPassInput" placeholder="รหัสผ่าน..."
+          onkeydown="if(event.key==='Enter')checkDeptPass()">
+      </div>
+      <div id="deptPassErr" style="display:none;font-size:12px;color:var(--red)">รหัสผ่านไม่ถูกต้อง</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" style="flex:1" onclick="closeDeptPassOverlay()">ยกเลิก</button>
+        <button class="btn btn-purple" style="flex:1" onclick="checkDeptPass()">เข้าสู่ระบบ</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if(e.target===overlay) closeDeptPassOverlay(); });
+  setTimeout(() => document.getElementById('deptPassInput')?.focus(), 80);
+}
+
+function closeDeptPassOverlay() {
+  document.getElementById('deptPassOverlay')?.remove();
+}
+
+function checkDeptPass() {
+  const val = document.getElementById('deptPassInput')?.value;
+  if (val === DEPT_MANAGER_PASS) {
+    closeDeptPassOverlay();
+    _openDeptManagerUI();
+  } else {
+    document.getElementById('deptPassErr').style.display = 'block';
+    document.getElementById('deptPassInput').value = '';
+    document.getElementById('deptPassInput').focus();
+  }
+}
+
+function _openDeptManagerUI() {
   renderDeptManagerList();
   document.getElementById('deptManagerModal').style.display = 'flex';
   setTimeout(() => document.getElementById('newDeptInput').focus(), 100);
@@ -1197,10 +1358,17 @@ function enterSender() {
   currentMode = 'sender';
   showScreen('screenSender');
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
-  // Restore saved name
-  const savedName = localStorage.getItem('dispatch_sender_name');
-  if (savedName) document.getElementById('senderName').value = savedName;
-  initItemRows();
+  // Restore saved name, dept, subject
+  const savedName    = localStorage.getItem('dispatch_sender_name');
+  const savedDept    = localStorage.getItem('dispatch_sender_dept');
+  const savedSubject = localStorage.getItem('dispatch_sender_subject');
+  if (savedName)    document.getElementById('senderName').value = savedName;
+  if (savedSubject) document.getElementById('senderSubject').value = savedSubject;
+  initItemRows(); // renders dept dropdown — restore dept after
+  if (savedDept) {
+    const sel = document.getElementById('senderDept');
+    if ([...sel.options].some(o => o.value === savedDept)) sel.value = savedDept;
+  }
   loadMyTickets();
   loadAllQueue();
   subscribeAsSender();
@@ -1240,7 +1408,8 @@ function enterWorker() {
 async function submitTicket() {
   const name = document.getElementById('senderName').value.trim();
   if (!name) { showToast('กรุณาใส่ชื่อ', 'warn', '⚠️'); return; }
-  const dept = document.getElementById('senderDept').value;
+  const dept    = document.getElementById('senderDept').value;
+  const subject = document.getElementById('senderSubject').value.trim();
   const itemObjs = getItemValues();
   if (!itemObjs.length) { showToast('กรุณาเพิ่มรายการอย่างน้อย 1 รายการ', 'warn', '⚠️'); return; }
 
@@ -1256,7 +1425,8 @@ async function submitTicket() {
     items,
     attachments: [],
     status: 'pending',
-    department: dept || null
+    department: dept || null,
+    subject: subject || null
   }).select().single();
 
   if (error) {
@@ -1281,7 +1451,7 @@ async function submitTicket() {
   myTokens.push({ id: data.id, token, name });
   saveTokens();
   initItemRows();
-  showToast(`ส่งรายการเรียบร้อย! #${data.ticket_ref || data.ticket_no}${dept ? ' [' + dept + ']' : ''} (${itemObjs.length} รายการ)`, 'success', '✅');
+  showToast(`ส่งแล้ว! #${data.ticket_ref || data.ticket_no}${subject ? ' — ' + subject : ''}${dept ? ' [' + dept + ']' : ''} (${itemObjs.length} รายการ)`, 'success', '✅');
   prependMyTicketCard(data, true);
 }
 
@@ -1319,7 +1489,8 @@ function prependMyTicketCard(ticket, isNew = false, prepend = true) {
 function buildTicketCardHTML(ticket) {
   const items = Array.isArray(ticket.items) ? ticket.items : [];
   const attachments = Array.isArray(ticket.attachments) ? ticket.attachments : [];
-  const dept = ticket.department || '';
+  const dept    = ticket.department || '';
+  const subject = ticket.subject || '';
 
   const itemsHtml = items.length ? `
     <table class="items-table">
@@ -1385,12 +1556,13 @@ function buildTicketCardHTML(ticket) {
 
   return `
     <div class="ticket-header">
-      <div style="display:flex;align-items:center;gap:6px;min-width:0">
+      <div style="display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap">
         <span class="ticket-no">#${ticket.ticket_ref || ticket.ticket_no || '—'} · ${escHtml(ticket.sender_name)}</span>
         ${dept ? deptBadgeHtml(dept) : ''}
       </div>
       <span class="status-badge ${ticket.status}">${statusLabel(ticket.status)}</span>
     </div>
+    ${subject ? `<div style="font-size:12px;font-weight:600;color:var(--text2);padding:1px 0 2px;display:flex;align-items:center;gap:5px"><span style="opacity:0.5">📌</span>${escHtml(subject)}</div>` : ''}
     ${itemsHtml}
     ${attachChipsHtml}
     <div style="display:flex;align-items:center;justify-content:space-between">
@@ -1542,6 +1714,7 @@ function buildQueueItem(ticket) {
       <span class="status-badge ${ticket.status}">${statusLabel(ticket.status)}</span>
     </div>
     ${dept ? `<div style="margin:1px 0">${deptBadgeHtml(dept)}</div>` : ''}
+    ${ticket.subject ? `<div style="font-size:11px;font-weight:600;color:var(--text2);margin:1px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📌 ${escHtml(ticket.subject)}</div>` : ''}
     <div class="q-preview">${items.length} รายการ${items.length > 0 ? ' · ' + doneCount + '/' + items.length + ' Code' : ''}${attachText}${commentText}</div>
     <div style="display:flex;align-items:center;justify-content:space-between">
       <span class="q-time">${fmtTime(ticket.created_at)}</span>
@@ -1576,10 +1749,11 @@ function renderWorkerDetail(id) {
   inner.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
       <div>
-        <div style="display:flex;align-items:center;gap:7px">
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
           <div class="sender-name-meta">${escHtml(ticket.sender_name)}</div>
           ${dept ? deptBadgeHtml(dept) : ''}
         </div>
+        ${ticket.subject ? `<div style="font-size:12px;font-weight:600;color:var(--text);margin-top:2px">📌 ${escHtml(ticket.subject)}</div>` : ''}
         <div style="font-size:11px;color:var(--text3)">#${ticket.ticket_ref || ticket.ticket_no || '—'} · ${fmtTime(ticket.created_at)}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
@@ -2013,6 +2187,7 @@ function buildQueueRoCard(ticket, isMine) {
         <span class="status-badge ${ticket.status}">${statusLabel(ticket.status)}</span>
       </div>
     </div>
+    ${ticket.subject ? `<div style="font-size:12px;font-weight:600;color:var(--text2)">📌 ${escHtml(ticket.subject)}</div>` : ''}
     <div class="qr-ref">${ref}</div>
     <div class="qr-items-preview">${itemsHtml}</div>
     <div class="qr-footer">
@@ -2037,6 +2212,7 @@ function openEditTicket(id) {
     if (!data) { showToast('ไม่พบรายการ', 'warn', '⚠️'); return; }
     if (data.status === 'done') { showToast('งานเสร็จแล้ว ไม่สามารถแก้ไขได้', 'warn', '⚠️'); return; }
     document.getElementById('editSenderName').value = data.sender_name || '';
+    document.getElementById('editSubject').value = data.subject || '';
     document.getElementById('editModalTitle').textContent = `✏️ แก้ไข #${data.ticket_ref || data.ticket_no}`;
     renderDeptDropdown('editDept', data.department || '');
     const editRows = document.getElementById('editItemRows');
@@ -2091,7 +2267,8 @@ async function saveEditTicket() {
   if (!id) return;
   const name = document.getElementById('editSenderName').value.trim();
   if (!name) { showToast('กรุณาใส่ชื่อ', 'warn', '⚠️'); return; }
-  const dept = document.getElementById('editDept').value;
+  const dept    = document.getElementById('editDept').value;
+  const subject = document.getElementById('editSubject').value.trim();
   if (!newItems.length) { showToast('กรุณาใส่รายการอย่างน้อย 1 รายการ', 'warn', '⚠️'); return; }
   const { data: current } = await sb.from('task_tickets').select('items').eq('id', id).single();
   const oldItems = Array.isArray(current?.items) ? current.items : [];
@@ -2104,7 +2281,7 @@ async function saveEditTicket() {
   const btn = document.querySelector('#editModal .btn-purple');
   btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
   const { error } = await sb.from('task_tickets').update({
-    sender_name: name, items: newItems, message: `${newItems.length} รายการ`, department: dept || null
+    sender_name: name, items: newItems, message: `${newItems.length} รายการ`, department: dept || null, subject: subject || null
   }).eq('id', id);
   btn.disabled = false;
   btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 7l3 3 6-6" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> บันทึก';
@@ -2309,7 +2486,7 @@ async function deleteTicketById(id) {
 // ─── CLEANUP ───
 async function cleanupOldTickets() {
   try {
-    const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const { data: expired } = await sb.from('task_tickets').select('id,attachments,worker_attachments').lt('created_at', cutoff);
     if (!expired || !expired.length) return;
     const pathsToDelete = [];
@@ -2327,6 +2504,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     document.getElementById('workerAuth').style.display = 'none';
     closeDeptManager();
+    closeDeptPassOverlay();
     closeDonePopup();
     closeWorkerNewPopup();
   }
@@ -2422,6 +2600,59 @@ window.addEventListener('DOMContentLoaded', () => {
   updateNotifStatus();
   initPanelResize('senderResizeHandle', '.send-panel',   'dispatch_sender_panel_w');
   initPanelResize('workerResizeHandle', '.worker-queue', 'dispatch_worker_panel_w');
+
+  // ── SPLASH: hide after 1.8s ──
+  setTimeout(() => {
+    const s = document.getElementById('splash');
+    if (s) { s.classList.add('hide'); setTimeout(() => s.remove(), 550); }
+  }, 1800);
+
+  // ── CLOCK & DATE ──
+  const THAI_DAYS  = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+  const THAI_MONTHS= ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                      'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+
+  function getWeekNumber(d) {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  }
+
+  function updateClock() {
+    const now   = new Date();
+    const hh    = String(now.getHours()).padStart(2,'0');
+    const mm    = String(now.getMinutes()).padStart(2,'0');
+    const ss    = String(now.getSeconds()).padStart(2,'0');
+    const timeStr = `${hh}:${mm}:${ss}`;
+    const dayName = THAI_DAYS[now.getDay()];
+    const dateStr = `วัน${dayName} ${now.getDate()} ${THAI_MONTHS[now.getMonth()]} ${now.getFullYear() + 543}`;
+    const weekStr = `สัปดาห์ที่ ${getWeekNumber(now)} ของปี`;
+
+    // Welcome screen
+    const wt = document.getElementById('wdTime');
+    const wd = document.getElementById('wdDate');
+    const ww = document.getElementById('wdWeek');
+    if (wt) wt.textContent = `${hh}:${mm}:${ss}`;
+    if (wd) wd.textContent = dateStr;
+    if (ww) ww.textContent = weekStr;
+
+    // Sender topbar
+    const sc = document.getElementById('senderClock');
+    const sd = document.getElementById('senderDate');
+    if (sc) sc.textContent = timeStr;
+    if (sd) sd.textContent = dateStr;
+
+    // Worker topbar
+    const wc = document.getElementById('workerClock');
+    const wdd= document.getElementById('workerDate');
+    if (wc) wc.textContent = timeStr;
+    if (wdd) wdd.textContent = dateStr;
+  }
+
+  updateClock();
+  setInterval(updateClock, 1000);
 
   // Restore worker session
   if (sessionStorage.getItem('workerAuthed') === '1') { enterWorker(); }
