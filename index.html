@@ -298,6 +298,13 @@ body {
 .qr-item-code.empty { color:var(--text3);background:var(--s3);font-weight:400; }
 .qr-footer { display:flex;align-items:center;justify-content:space-between; }
 .qr-time { font-size:11px;color:var(--text3); }
+.qr-duration {
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:10px;font-weight:600;padding:2px 7px;
+  border-radius:20px;background:var(--green-dim);
+  color:var(--green);border:1px solid rgba(52,199,89,0.2);
+}
+.qr-time-row { display:flex;flex-direction:column;gap:1px; }
 .qr-progress { font-size:11px;color:var(--text2);display:flex;align-items:center;gap:5px; }
 .qr-progress-bar { width:60px;height:4px;background:var(--s3);border-radius:10px;overflow:hidden; }
 .qr-progress-fill { height:100%;border-radius:10px;background:var(--accent);transition:width 0.4s; }
@@ -696,7 +703,7 @@ body {
           <span>📌 หัวเรื่อง <span style="font-size:10px;color:var(--text3);font-weight:400">(ไม่บังคับ)</span></span>
         </div>
         <input type="text" class="form-input" id="senderSubject"
-          placeholder="เช่น โครงการ A, BO69-0277, งานพี่..."
+          placeholder="เช่น โครงการ A, BO69-0277, งานพี่จ๋อม..."
           oninput="localStorage.setItem('dispatch_sender_subject', this.value)">
       </div>
 
@@ -1270,6 +1277,15 @@ async function openFile(path, name, type) {
 // ─── UTILS ───
 function genToken() { return 'tk_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
 
+function fmtDuration(startIso, endIso) {
+  if (!startIso || !endIso) return null;
+  const mins = Math.round((new Date(endIso) - new Date(startIso)) / 60000);
+  if (mins < 1) return '< 1 นาที';
+  if (mins < 60) return `${mins} นาที`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m > 0 ? `${h} ชม. ${m} นาที` : `${h} ชม.`;
+}
+
 function fmtTime(iso) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -1570,8 +1586,12 @@ function buildTicketCardHTML(ticket) {
     ${subject ? `<div style="font-size:12px;font-weight:600;color:var(--text2);padding:1px 0 2px;display:flex;align-items:center;gap:5px"><span style="opacity:0.5">📌</span>${escHtml(subject)}</div>` : ''}
     ${itemsHtml}
     ${attachChipsHtml}
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <div class="ticket-time">${fmtTime(ticket.created_at)}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px">
+      <div style="display:flex;flex-direction:column;gap:1px">
+        <div class="ticket-time">📤 ส่ง: ${fmtTime(ticket.created_at)}</div>
+        ${ticket.replied_at ? `<div class="ticket-time">✅ เสร็จ: ${fmtTime(ticket.replied_at)}</div>` : ''}
+        ${ticket.replied_at ? `<span class="qr-duration" style="margin-top:2px">⏱ ${fmtDuration(ticket.created_at, ticket.replied_at)}</span>` : ''}
+      </div>
       <div class="card-actions">
         <button class="card-action-btn edit ${!canEdit ? 'done-locked' : ''}" onclick="openEditTicket('${ticket.id}')">✏️ แก้ไข</button>
         <button class="card-action-btn del" onclick="deleteSenderTicket('${ticket.id}')">🗑️ ลบ</button>
@@ -2129,7 +2149,7 @@ async function refreshAllQueue() {
 
 async function loadAllQueue() {
   const { data } = await sb.from('task_tickets')
-    .select('id,ticket_ref,ticket_no,sender_name,sender_token,items,status,created_at,attachments,department')
+    .select('id,ticket_ref,ticket_no,sender_name,sender_token,items,status,created_at,replied_at,attachments,department,subject')
     .order('created_at', { ascending: false }).limit(100);
   if (!data) return;
   allTickets = data;
@@ -2196,8 +2216,14 @@ function buildQueueRoCard(ticket, isMine) {
     <div class="qr-ref">${ref}</div>
     <div class="qr-items-preview">${itemsHtml}</div>
     <div class="qr-footer">
-      <span class="qr-time">${fmtTime(ticket.created_at)}</span>
-      ${items.length ? `<div class="qr-progress"><span>${doneCount}/${items.length}</span><div class="qr-progress-bar"><div class="qr-progress-fill ${pct===100?'done':''}" style="width:${pct}%"></div></div></div>` : ''}
+      <div class="qr-time-row">
+        <span class="qr-time">📤 ส่ง: ${fmtTime(ticket.created_at)}</span>
+        ${ticket.replied_at ? `<span class="qr-time">✅ เสร็จ: ${fmtTime(ticket.replied_at)}</span>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        ${ticket.replied_at ? `<span class="qr-duration">⏱ ${fmtDuration(ticket.created_at, ticket.replied_at)}</span>` : ''}
+        ${items.length ? `<div class="qr-progress"><span>${doneCount}/${items.length}</span><div class="qr-progress-bar"><div class="qr-progress-fill ${pct===100?'done':''}" style="width:${pct}%"></div></div></div>` : ''}
+      </div>
     </div>`;
   return card;
 }
