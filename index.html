@@ -643,7 +643,7 @@ body {
   <div class="wd-date" id="wdDate"></div>
   <div class="wd-week" id="wdWeek"></div>
 </div>
-<button onclick="openSettings()" title="ตั้งค่า" style="position:fixed;top:14px;left:18px;z-index:200;width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,0.8);border:1px solid var(--border2);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all 0.13s;backdrop-filter:blur(8px);" onmouseover="this.style.background='white'" onmouseout="this.style.background='rgba(255,255,255,0.8)'">⚙️</button>
+<button id="welcomeSettingsBtn" onclick="openSettings()" title="ตั้งค่า" style="position:fixed;top:14px;left:18px;z-index:200;width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,0.8);border:1px solid var(--border2);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all 0.13s;backdrop-filter:blur(8px);" onmouseover="this.style.background='white'" onmouseout="this.style.background='rgba(255,255,255,0.8)'">⚙️</button>
 
 
 <!-- ─── WELCOME ─── -->
@@ -1536,6 +1536,7 @@ function goHome() {
   if (currentMode === 'sender') sessionStorage.removeItem('senderActive');
   currentMode = null; selectedTicketId = null;
   document.getElementById('welcomeDateTime').style.display = 'flex';
+  document.getElementById('welcomeSettingsBtn').style.display = 'flex';
   showScreen('screenWelcome');
 }
 
@@ -1544,6 +1545,7 @@ function enterSender() {
   showScreen('screenSender');
   sessionStorage.setItem('senderActive', '1');
   document.getElementById('welcomeDateTime').style.display = 'none';
+  document.getElementById('welcomeSettingsBtn').style.display = 'none';
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   // Restore saved name, dept, subject
   const savedName    = localStorage.getItem('dispatch_sender_name');
@@ -1586,6 +1588,7 @@ function enterWorker() {
   currentMode = 'worker';
   showScreen('screenWorker');
   document.getElementById('welcomeDateTime').style.display = 'none';
+  document.getElementById('welcomeSettingsBtn').style.display = 'none';
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   loadWorkerQueue();
   subscribeAsWorker();
