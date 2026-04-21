@@ -696,7 +696,7 @@ body {
           <span>📌 หัวเรื่อง <span style="font-size:10px;color:var(--text3);font-weight:400">(ไม่บังคับ)</span></span>
         </div>
         <input type="text" class="form-input" id="senderSubject"
-          placeholder="เช่น โครงการ A, BO69-0277, งานพี่จ๋อม..."
+          placeholder="เช่น โครงการ A, BO69-0277, งานพี่..."
           oninput="localStorage.setItem('dispatch_sender_subject', this.value)">
       </div>
 
@@ -1350,13 +1350,17 @@ function goHome() {
   if (senderChannel) { sb.removeChannel(senderChannel); senderChannel = null; }
   if (workerChannel) { sb.removeChannel(workerChannel); workerChannel = null; }
   if (currentMode === 'worker') sessionStorage.removeItem('workerAuthed');
+  if (currentMode === 'sender') sessionStorage.removeItem('senderActive');
   currentMode = null; selectedTicketId = null;
+  document.getElementById('welcomeDateTime').style.display = 'flex';
   showScreen('screenWelcome');
 }
 
 function enterSender() {
   currentMode = 'sender';
   showScreen('screenSender');
+  sessionStorage.setItem('senderActive', '1');
+  document.getElementById('welcomeDateTime').style.display = 'none';
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   // Restore saved name, dept, subject
   const savedName    = localStorage.getItem('dispatch_sender_name');
@@ -1398,6 +1402,7 @@ function checkWorkerPass() {
 function enterWorker() {
   currentMode = 'worker';
   showScreen('screenWorker');
+  document.getElementById('welcomeDateTime').style.display = 'none';
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   loadWorkerQueue();
   subscribeAsWorker();
@@ -2654,8 +2659,12 @@ window.addEventListener('DOMContentLoaded', () => {
   updateClock();
   setInterval(updateClock, 1000);
 
-  // Restore worker session
-  if (sessionStorage.getItem('workerAuthed') === '1') { enterWorker(); }
+  // ── AUTO-RESTORE SESSIONS ──
+  if (sessionStorage.getItem('workerAuthed') === '1') {
+    enterWorker();
+  } else if (sessionStorage.getItem('senderActive') === '1') {
+    enterSender();
+  }
 
   // Inject popups
   document.body.insertAdjacentHTML('beforeend', `
