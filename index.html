@@ -1747,8 +1747,8 @@ function buildTicketCardHTML(ticket) {
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px">
       <div style="display:flex;flex-direction:column;gap:1px">
         <div class="ticket-time">📤 ส่ง: ${fmtTimeAuto(ticket.created_at)}</div>
-        ${ticket.replied_at ? `<div class="ticket-time">✅ เสร็จ: ${fmtTimeAuto(ticket.replied_at)}</div>` : ''}
-        ${ticket.replied_at ? `<span class="qr-duration" style="margin-top:2px">⏱ ${fmtDuration(ticket.created_at, ticket.replied_at)}</span>` : ''}
+        ${showTimeStats && ticket.replied_at ? `<div class="ticket-time">✅ เสร็จ: ${fmtTimeAuto(ticket.replied_at)}</div>` : ''}
+        ${showTimeStats && ticket.replied_at ? `<span class="qr-duration" style="margin-top:2px">⏱ ${fmtDuration(ticket.created_at, ticket.replied_at)}</span>` : ''}
       </div>
       <div class="card-actions">
         <button class="card-action-btn edit ${!canEdit ? 'done-locked' : ''}" onclick="openEditTicket('${ticket.id}')">✏️ แก้ไข</button>
