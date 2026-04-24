@@ -164,6 +164,7 @@ body {
 .status-badge { font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;letter-spacing:0.01em; }
 .status-badge.pending { background:#f2f2f7;color:var(--text2);border:1px solid rgba(0,0,0,0.08); }
 .status-badge.in_progress { background:var(--orange-dim);color:var(--orange);border:1px solid rgba(255,149,0,0.2); }
+.status-badge.commented { background:rgba(88,86,214,0.1);color:#5856d6;border:1px solid rgba(88,86,214,0.25); }
 .status-badge.done { background:var(--green-dim);color:var(--green);border:1px solid rgba(52,199,89,0.25); }
 .ticket-msg { font-size:13px;color:var(--text);line-height:1.6; }
 .ticket-reply { background:linear-gradient(135deg,#f0fff4,#e8fff1);border:1px solid rgba(52,199,89,0.25);border-radius:8px;padding:9px 12px;font-size:13px;color:#1a7a38;line-height:1.6; }
@@ -504,6 +505,39 @@ body {
 .splash-dots span:nth-child(3){animation-delay:.4s}
 @keyframes dotPulse{0%,100%{opacity:.25;transform:scale(1)}50%{opacity:1;transform:scale(1.4);background:#007AFF}}
 
+.ticket-card.status-commented {
+  border-color:rgba(88,86,214,0.3);
+  background:linear-gradient(to bottom right,#fff,#f5f4ff);
+}
+.queue-item.commented-item { border-left:3px solid #5856d6; }
+.btn-reopen {
+  background:rgba(88,86,214,0.08);color:#5856d6;
+  border:1px solid rgba(88,86,214,0.25);
+  border-radius:6px;padding:5px 12px;font-size:12px;
+  cursor:pointer;font-family:-apple-system,'Sarabun',sans-serif;
+  display:inline-flex;align-items:center;gap:5px;transition:all 0.13s;
+}
+.btn-reopen:hover { background:rgba(88,86,214,0.15); }
+
+#senderCmtPopup {
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.28);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  display:none;align-items:center;justify-content:center;z-index:8000;padding:20px;pointer-events:none;
+}
+#senderCmtPopup.open { display:flex;pointer-events:auto; }
+.scp-box {
+  background:rgba(255,255,255,0.97);border:1px solid rgba(0,122,255,0.3);
+  border-radius:18px;padding:18px 20px 16px;width:320px;max-width:calc(100vw - 32px);
+  display:flex;flex-direction:column;gap:12px;
+  box-shadow:0 20px 50px rgba(0,0,0,0.16);
+  animation:wnpSlideIn 0.3s cubic-bezier(0.34,1.4,0.64,1);
+}
+.scp-head { display:flex;align-items:center;gap:10px; }
+.scp-icon { width:40px;height:40px;border-radius:12px;flex-shrink:0;background:linear-gradient(145deg,#e3f0ff,#d0e8ff);border:1px solid rgba(0,122,255,0.2);display:flex;align-items:center;justify-content:center;font-size:20px; }
+.scp-body { background:#f5f5fa;border:1px solid var(--border);border-radius:9px;padding:10px 13px;font-size:13px;color:var(--text);line-height:1.6; }
+.scp-footer { display:flex;gap:8px; }
+.scp-footer .btn { flex:1;font-size:13px; }
+
 /* ── TOPBAR DATETIME ── */
 .topbar-datetime {
   display:flex;flex-direction:column;align-items:flex-end;gap:0;
@@ -745,7 +779,7 @@ body {
           <span>📌 หัวเรื่อง <span style="font-size:10px;color:var(--text3);font-weight:400">(ไม่บังคับ)</span></span>
         </div>
         <input type="text" class="form-input" id="senderSubject"
-          placeholder="เช่น โครงการ A, BO69-0277, งานพี่..."
+          placeholder="เช่น โครงการ A, BO69-0277, งานพี่จ๋อม..."
           oninput="localStorage.setItem('dispatch_sender_subject', this.value)">
       </div>
 
@@ -1449,9 +1483,10 @@ function fmtTime(iso) {
 }
 
 function statusLabel(s) {
-  if (s === 'pending') return 'รอดำเนินการ';
-  if (s === 'in_progress') return 'กำลังดำเนินการ';
-  if (s === 'done') return 'เสร็จแล้ว';
+  if (s === 'pending')    return 'รอดำเนินการ';
+  if (s === 'in_progress')return 'กำลังดำเนินการ';
+  if (s === 'commented')  return '💬 มี Comment';
+  if (s === 'done')       return 'เสร็จแล้ว';
   return s;
 }
 
@@ -1682,18 +1717,17 @@ function buildTicketCardHTML(ticket) {
         ${items.map((item, i) => {
           const cmts = Array.isArray(item.comments) ? item.comments : [];
           const cmtBadge = cmts.length
-            ? `<span class="td-cmt-badge" onclick="event.stopPropagation();toggleSenderItemCmt('${ticket.id}',${i})" title="ความคิดเห็น ${cmts.length} ข้อความ">💬 ${cmts.length}</span>`
+            ? `<span class="td-cmt-badge" onclick="event.stopPropagation();toggleSenderItemCmt('${ticket.id}',${i})" title="ดู Comment ${cmts.length} ข้อความ">💬 ${cmts.length}</span>`
             : '';
           const refChip = item.ref_code
             ? `<div style="margin-top:3px"><span class="ref-code-chip" onclick="event.stopPropagation();copyAndFlash(this,'${item.ref_code.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}');return false;" title="Copy Code อ้างอิง">📌 ${escHtml(item.ref_code)}</span></div>`
             : '';
-          const cmt2Html = cmts.length ? cmts.map(c=>`
+          // thread แสดงแบบ read-only (กดที่ badge เพื่อดู)
+          const cmt2Html = cmts.map(c=>`
             <div class="item-comment-bubble ${c.role}">
               <div class="item-comment-meta ${c.role}">${escHtml(c.author)} <span>${fmtTime(c.created_at)}</span></div>
               <div class="item-comment-text">${escHtml(c.text).replace(/\n/g,'<br>')}</div>
-            </div>`).join('') : '<div style="font-size:11px;color:var(--text3)">ยังไม่มีความคิดเห็น</div>';
-          const myToken = myTokens.find(t=>t.id===ticket.id);
-          const senderAuthor = myToken?.name || ticket.sender_name || 'ผู้ส่ง';
+            </div>`).join('');
           return `
           <tr onclick="copyAndFlash(this.cells[1],'${item.description.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}',true)" style="cursor:pointer">
             <td class="td-no">${i+1}</td>
@@ -1706,31 +1740,52 @@ function buildTicketCardHTML(ticket) {
               ${item.code ? `<span class="code-chip">${escHtml(item.code)}</span>` : `<span class="code-pending">รอ</span>`}
             </td>
           </tr>
-          <tr class="sender-item-cmts-row" id="sicmtrow_${ticket.id}_${i}">
+          ${cmts.length ? `<tr class="sender-item-cmts-row" id="sicmtrow_${ticket.id}_${i}">
             <td colspan="3" class="sender-item-cmts-cell">
-              <div style="display:flex;flex-direction:column;gap:6px">
-                <div class="item-comment-thread">${cmt2Html}</div>
-                <div class="item-comment-input-row">
-                  <textarea class="item-comment-input" id="senderItemCmtInput_${ticket.id}_${i}" rows="1"
-                    placeholder="ตอบกลับ / แจ้งคนทำงานสำหรับรายการนี้..."
-                    oninput="autoResizeEl(this)"
-                    onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addItemComment('${ticket.id}',${i},'sender','${escHtml(senderAuthor).replace(/'/g,"\\'")}')}"
-                  ></textarea>
-                  <button class="btn btn-purple btn-sm" onclick="addItemComment('${ticket.id}',${i},'sender','${escHtml(senderAuthor).replace(/'/g,"\\'")}')">ส่ง</button>
-                </div>
-              </div>
+              <div class="item-comment-thread">${cmt2Html}</div>
             </td>
-          </tr>`;
+          </tr>` : ''}`;
         }).join('')}
       </tbody>
     </table>` : `<div style="font-size:12px;color:var(--text3)">${escHtml(ticket.message)}</div>`;
 
   const canEdit = ticket.status === 'pending' || ticket.status === 'in_progress';
+  const isDoneCard = ticket.status === 'done';
+  const isCommentedCard = ticket.status === 'commented';
+  const isActive = ticket.status !== 'done'; // มี reply box
+
   const attachChipsHtml = attachments.length ? `
     <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:2px">
       ${attachments.map(f => `<button class="attach-file-chip" onclick="openFile('${escHtml(f.path)}','${escHtml(f.name)}','${escHtml(f.type||'')}')">
         ${fileIcon(f.name)} <span>${escHtml(f.name)}</span>
       </button>`).join('')}
+    </div>` : '';
+
+  const myToken = myTokens.find(t=>t.id===ticket.id);
+  const senderAuthor = myToken?.name || ticket.sender_name || 'ผู้ส่ง';
+
+  // ─── Single reply area at bottom ───
+  // สำหรับงาน done: ส่ง comment = ส่งกลับอัตโนมัติ
+  // สำหรับงาน commented/in_progress/pending: ส่ง comment อย่างเดียว
+  const replyHtml = isDoneCard ? `
+    <div style="display:flex;flex-direction:column;gap:5px;border-top:1px solid var(--border);padding-top:8px;margin-top:2px">
+      <div style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px">
+        <span>📤</span> พิมพ์แล้วกด <b>ส่งกลับ</b> เพื่อให้คนทำงานตรวจสอบใหม่
+      </div>
+      <div style="display:flex;gap:6px;align-items:flex-end">
+        <textarea class="item-comment-input" id="senderReply_${ticket.id}" rows="1"
+          placeholder="ระบุปัญหา หรือสิ่งที่ต้องแก้ไข (ไม่บังคับ)..."
+          oninput="autoResizeEl(this)" style="flex:1"></textarea>
+        <button class="btn-reopen" onclick="senderSubmitReply('${ticket.id}','${escHtml(senderAuthor).replace(/'/g,"\\'")}')">📤 ส่งกลับ</button>
+      </div>
+    </div>` : (isCommentedCard || !isDoneCard) ? `
+    <div style="display:flex;gap:6px;align-items:flex-end;border-top:1px solid var(--border);padding-top:8px;margin-top:2px">
+      <textarea class="item-comment-input" id="senderReply_${ticket.id}" rows="1"
+        placeholder="💬 ตอบกลับ / แจ้งเพิ่มเติม..."
+        oninput="autoResizeEl(this)" style="flex:1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();senderSubmitReply('${ticket.id}','${escHtml(senderAuthor).replace(/'/g,"\\'")}')}"
+      ></textarea>
+      <button class="btn btn-purple btn-sm" onclick="senderSubmitReply('${ticket.id}','${escHtml(senderAuthor).replace(/'/g,"\\'")}')">ส่ง</button>
     </div>` : '';
 
   return `
@@ -1744,7 +1799,8 @@ function buildTicketCardHTML(ticket) {
     ${subject ? `<div style="font-size:12px;font-weight:600;color:var(--text2);padding:1px 0 2px;display:flex;align-items:center;gap:5px"><span style="opacity:0.5">📌</span>${escHtml(subject)}</div>` : ''}
     ${itemsHtml}
     ${attachChipsHtml}
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px">
+    ${replyHtml}
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-top:4px">
       <div style="display:flex;flex-direction:column;gap:1px">
         <div class="ticket-time">📤 ส่ง: ${fmtTimeAuto(ticket.created_at)}</div>
         ${showTimeStats && ticket.replied_at ? `<div class="ticket-time">✅ เสร็จ: ${fmtTimeAuto(ticket.replied_at)}</div>` : ''}
@@ -1767,6 +1823,62 @@ function updateMyTicketCard(ticket) {
     setTimeout(() => card.classList.remove('new-reply'), 1000);
   }
 }
+
+// ─── SENDER REPLY / REOPEN (ปุ่มเดียว) ───
+async function senderSubmitReply(id, author) {
+  const textarea = document.getElementById(`senderReply_${id}`);
+  const text = textarea?.value.trim() || '';
+
+  const { data: fresh, error: fetchErr } = await sb.from('task_tickets').select('items,status').eq('id', id).single();
+  if (fetchErr) { showToast('โหลดไม่สำเร็จ: ' + fetchErr.message, 'warn', '❌'); return; }
+
+  const currentStatus = fresh?.status;
+  const items = Array.isArray(fresh?.items) ? JSON.parse(JSON.stringify(fresh.items)) : [];
+
+  if (!text && currentStatus !== 'done') {
+    showToast('กรุณาพิมพ์ข้อความก่อนส่ง', 'warn', '⚠️'); return;
+  }
+
+  if (text && items.length > 0) {
+    const cmts = Array.isArray(items[0].comments) ? items[0].comments : [];
+    items[0] = { ...items[0], comments: [...cmts, {
+      id: Math.random().toString(36).slice(2),
+      role: 'sender', author, text,
+      created_at: new Date().toISOString()
+    }]};
+  }
+
+  const updatePayload = { items };
+  if (currentStatus === 'done') {
+    // ส่งกลับ → reopen
+    updatePayload.status = 'in_progress';
+    updatePayload.replied_at = null;
+    updatePayload.has_worker_comments = false;
+  } else if (currentStatus === 'commented') {
+    // sender ตอบกลับ comment → worker กลับมาดำเนินการได้
+    updatePayload.status = 'in_progress';
+    updatePayload.has_worker_comments = false;
+  }
+
+  const { error } = await sb.from('task_tickets').update(updatePayload).eq('id', id);
+  if (error) { showToast('ส่งไม่สำเร็จ: ' + error.message, 'warn', '❌'); return; }
+
+  if (textarea) { textarea.value = ''; textarea.style.height = ''; }
+  const isDone = currentStatus === 'done';
+  const isCommented = currentStatus === 'commented';
+  showToast(isDone ? 'ส่งกลับให้คนทำงานแล้ว 📤' : isCommented ? 'ตอบกลับ Comment แล้ว ✅' : 'ส่ง Comment แล้ว 💬',
+    isDone ? 'info' : 'success',
+    isDone ? '📤' : '✅');
+}
+
+async function senderReopenTicket(id) {
+  // Backward compat - เรียก senderSubmitReply แทน
+  const myToken = myTokens.find(t => t.id === id);
+  const author = myToken?.name || 'ผู้ส่ง';
+  await senderSubmitReply(id, author);
+}
+
+
 
 // ─── SENDER: REALTIME ───
 function subscribeAsSender() {
@@ -1795,6 +1907,10 @@ function subscribeAsSender() {
         showDonePopup(updated);
         showToast(`#${updated.ticket_ref || updated.ticket_no} ได้ Code แล้ว! ${codeList}`, 'success', '🎉');
         notifyBrowser(`Code พร้อม #${updated.ticket_ref || updated.ticket_no}`, codeList, { tag: 'done-' + updated.id });
+      } else if (updated.status === 'commented') {
+        const ref = updated.ticket_ref || updated.ticket_no || '';
+        showToast(`💬 #${ref} คนทำงานมี Comment รอตอบกลับ`, 'warn', '💬');
+        notifyBrowser(`💬 มี Comment #${ref}`, 'คนทำงานถามกลับ กรุณาตอบกลับเพื่อดำเนินการต่อ', { tag: 'commented-' + updated.id });
       } else if (updated.status === 'in_progress') {
         showToast(`#${updated.ticket_ref || updated.ticket_no} กำลังดำเนินการ`, 'info', '⚙️');
       }
@@ -1852,7 +1968,7 @@ function renderWorkerQueue() {
 
   const filtered = getFilteredTickets();
   const pending = filtered.filter(t => t.status !== 'done');
-  const done = filtered.filter(t => t.status === 'done');
+  const done    = filtered.filter(t => t.status === 'done');
 
   // Total counts (all depts for badge)
   const totalPending = workerTickets.filter(t => t.status !== 'done').length;
@@ -1924,8 +2040,8 @@ function renderWorkerDetail(id) {
 
   const items = Array.isArray(ticket.items) ? ticket.items : [];
   const isDone = ticket.status === 'done';
-  const isEditing = isDone && workerEditSet.has(id); // done แต่กำลัง re-edit
-  const isEditable = !isDone || isEditing;           // true = แสดง input
+  const isEditing = isDone && workerEditSet.has(id);
+  const isEditable = !isDone || isEditing || ticket.status === 'commented';
   const dept = ticket.department || '';
 
   const inner = document.getElementById('detailContentInner');
@@ -2030,12 +2146,12 @@ function renderWorkerDetail(id) {
       const inputHtml = `
         <div class="item-comment-input-row">
           <textarea class="item-comment-input" id="itemCmtInput_${id}_${i}" rows="1"
-            placeholder="ถาม / แจ้งผู้ส่งสำหรับรายการนี้..."
-            oninput="autoResizeEl(this)"
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();addItemComment('${id}',${i},'worker','คนทำงาน')}"
+            placeholder="พิมพ์ Comment สำหรับรายการนี้ แล้วกด ✅ ยืนยัน ด้านล่าง"
+            oninput="autoResizeEl(this);updateMarkDoneBtn('${id}')"
+            style="flex:1"
           ></textarea>
-          <button class="btn btn-amber btn-sm" onclick="addItemComment('${id}',${i},'worker','คนทำงาน')">ส่ง 💬</button>
-        </div>`;
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">💡 ข้อความนี้จะถูกส่งพร้อมกันตอนกดปุ่มยืนยันด้านล่าง</div>`;
       cmtTr.innerHTML = `<td colspan="4" class="wt-cmts-cell">
         <div class="wt-cmts-inner">${threadHtml}${inputHtml}</div>
       </td>`;
@@ -2063,45 +2179,62 @@ function renderWorkerDetail(id) {
   }
 
   const replyArea = document.getElementById('workerReplyArea');
+  const isCommented = ticket.status === 'commented';
 
   if (isDone && !isEditing) {
-    // ─── Done + ไม่ได้กำลัง edit ───
     replyArea.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px">
-        <div style="font-size:12px;color:var(--green);font-weight:600;display:flex;align-items:center;gap:5px">
-          ✅ งานนี้เสร็จสมบูรณ์แล้ว
-        </div>
-        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="enterWorkerEditMode('${id}')">
-          ✏️ แก้ไขอีกครั้ง
-        </button>
-      </div>
-      <div style="font-size:11px;color:var(--text3)">กด "แก้ไขอีกครั้ง" เพื่อแก้ Code หรือเพิ่ม Comment</div>`;
-
-  } else if (isDone && isEditing) {
-    // ─── Done + กำลัง re-edit ───
-    replyArea.innerHTML = `
-      <div class="edit-mode-banner">
-        ✏️ <span>โหมดแก้ไข — แก้ Code ได้ แล้วกด "บันทึก"</span>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:2px">
-        <button class="btn btn-ghost btn-sm" onclick="cancelWorkerEdit('${id}')">ยกเลิก</button>
-        <button class="btn btn-purple" style="flex:1" onclick="saveWorkerEdit('${id}')">
-          💾 บันทึก
-        </button>
+        <div style="font-size:12px;color:var(--green);font-weight:600">✅ งานนี้เสร็จสมบูรณ์แล้ว</div>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="enterWorkerEditMode('${id}')">✏️ แก้ไขอีกครั้ง</button>
       </div>`;
 
+  } else if (isDone && isEditing) {
+    replyArea.innerHTML = `
+      <div class="edit-mode-banner">✏️ <span>โหมดแก้ไข — แก้ Code ได้ แล้วกด "บันทึก"</span></div>
+      <div style="display:flex;gap:8px;margin-top:2px">
+        <button class="btn btn-ghost btn-sm" onclick="cancelWorkerEdit('${id}')">ยกเลิก</button>
+        <button class="btn btn-purple" style="flex:1" onclick="saveWorkerEdit('${id}')">💾 บันทึก</button>
+      </div>`;
+
+  } else if (isCommented) {
+    replyArea.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 11px;background:rgba(88,86,214,0.07);border:1px solid rgba(88,86,214,0.2);border-radius:8px">
+        <span>💬</span>
+        <span style="font-size:12px;color:#5856d6;font-weight:600">รอผู้ส่งตอบกลับ Comment</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-green" style="flex:1" onclick="markDone('${id}')">✅ ยืนยันเสร็จสมบูรณ์</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3)">ถ้าแก้ไขเสร็จแล้ว กด "ยืนยันเสร็จสมบูรณ์" · หรือพิมพ์ Comment ด้านบนแล้วกดปุ่มเพื่อส่งเพิ่ม</div>`;
+
   } else {
-    // ─── ยังไม่ done ───
     replyArea.innerHTML = `
       <div style="display:flex;gap:8px;margin-top:2px">
         ${ticket.status === 'pending' ? `<button class="btn btn-ghost btn-sm" onclick="setInProgress('${id}')">⚙️ รับงาน</button>` : ''}
         <button class="btn btn-green" style="flex:1" onclick="markDone('${id}')">✅ ยืนยัน — แจ้งเตือนกลับ</button>
       </div>
-      <div style="font-size:11px;color:var(--text3)">กรอก Code ในตารางด้านบน · ลาก <b>⬛</b> ท้ายแถวเพื่อ Fill อัตโนมัติ</div>`;
+      <div style="font-size:11px;color:var(--text3)">กรอก Code ด้านบน · ถ้ามี Comment ในช่องรายการ จะส่งเป็น <b>💬 มี Comment</b> แทน done</div>`;
   }
 }
 
-// Code input helpers
+function updateMarkDoneBtn(id) {
+  const btn = document.getElementById(`markDoneBtn_${id}`);
+  if (!btn) return;
+  // ตรวจว่ามี comment ที่พิมพ์ไว้ไหม
+  const hasText = [...document.querySelectorAll(`[id^="itemCmtInput_${id}_"]`)]
+    .some(el => el.value.trim() !== '');
+  if (hasText) {
+    btn.className = 'btn btn-amber';
+    btn.style.flex = '1';
+    btn.textContent = '💬 ส่ง Comment + แจ้งเตือน';
+  } else {
+    btn.className = 'btn btn-green';
+    btn.style.flex = '1';
+    btn.textContent = '✅ ยืนยัน — แจ้งเตือนกลับ';
+  }
+}
+
+
 function onCodeInput(input, id, idx) {
   input.classList.toggle('filled', input.value.trim() !== '');
   const ticket = workerTickets.find(t => t.id === id);
@@ -2221,26 +2354,81 @@ async function setInProgress(id) {
 async function markDone(id) {
   const ticket = workerTickets.find(t => t.id === id);
   if (!ticket) return;
-  const items = Array.isArray(ticket.items) ? ticket.items : [];
-  items.forEach((item, i) => {
-    const input = document.getElementById(`code_${id}_${i}`);
-    if (input) item.code = input.value.trim() || 'OK'; else if (!item.code) item.code = 'OK';
-  });
-  const btn = document.querySelector('#workerReplyArea .btn-green');
+
+  const btn = document.querySelector('#workerReplyArea .btn-green') ||
+              document.querySelector('#workerReplyArea .btn-amber');
   if (btn) { btn.disabled = true; btn.textContent = 'กำลังส่ง...'; }
-  const codeList = items.map((it, i) => `${i+1}. ${it.code || 'OK'}`).join('\n');
-  const { error } = await sb.from('task_tickets').update({
-    status: 'done', items, worker_reply: codeList, worker_attachments: [], replied_at: new Date().toISOString()
-  }).eq('id', id);
-  if (error) {
-    showToast('เกิดข้อผิดพลาด', 'warn', '❌');
-    if (btn) { btn.disabled = false; btn.textContent = '✅ ยืนยัน — แจ้งเตือนกลับ'; }
+
+  // Fetch fresh items
+  const { data: fresh, error: fetchErr } = await sb.from('task_tickets').select('items').eq('id', id).single();
+  if (fetchErr) {
+    showToast('โหลดข้อมูลไม่สำเร็จ: ' + fetchErr.message, 'warn', '❌');
+    if (btn) { btn.disabled = false; btn.textContent = '✅ ยืนยัน'; }
     return;
   }
-  showToast('ส่งเรียบร้อย แจ้งเตือนผู้ส่งแล้ว 📨', 'success', '✅');
-  updateLocalTicket(id, { status: 'done', items, worker_reply: codeList, worker_attachments: [], replied_at: new Date().toISOString() });
+
+  const items = Array.isArray(fresh?.items) ? JSON.parse(JSON.stringify(fresh.items))
+    : Array.isArray(ticket.items) ? JSON.parse(JSON.stringify(ticket.items)) : [];
+
+  // ─── Sync code + collect new comments (simple for-loop) ───
+  let hasNewComments = false;
+  for (let i = 0; i < items.length; i++) {
+    // Sync code from input
+    const codeInput = document.getElementById(`code_${id}_${i}`);
+    if (codeInput) {
+      items[i] = { ...items[i], code: codeInput.value.trim() || items[i].code || 'OK' };
+    } else if (!items[i].code) {
+      items[i] = { ...items[i], code: 'OK' };
+    }
+
+    // Collect comment from expanded input
+    const cmtInput = document.getElementById(`itemCmtInput_${id}_${i}`);
+    if (cmtInput && cmtInput.value.trim()) {
+      hasNewComments = true;
+      const existingCmts = Array.isArray(items[i].comments) ? items[i].comments : [];
+      items[i] = {
+        ...items[i],
+        comments: [...existingCmts, {
+          id: Math.random().toString(36).slice(2),
+          role: 'worker',
+          author: 'คนทำงาน',
+          text: cmtInput.value.trim(),
+          created_at: new Date().toISOString()
+        }]
+      };
+      cmtInput.value = '';
+      cmtInput.style.height = '';
+    }
+  }
+
+  const newStatus  = hasNewComments ? 'commented' : 'done';
+  const codeList   = items.map((it, i) => `${i+1}. ${it.code || '—'}`).join('\n');
+  const repliedAt  = newStatus === 'done' ? new Date().toISOString() : null;
+
+  const { error } = await sb.from('task_tickets').update({
+    status: newStatus,
+    items,
+    worker_reply: codeList,
+    replied_at: repliedAt,
+    has_worker_comments: hasNewComments
+  }).eq('id', id);
+
+  if (error) {
+    showToast('บันทึกไม่สำเร็จ: ' + error.message, 'warn', '❌');
+    if (btn) { btn.disabled = false; btn.textContent = hasNewComments ? '💬 ส่ง Comment + แจ้งเตือน' : '✅ ยืนยัน — แจ้งเตือนกลับ'; }
+    return;
+  }
+
+  if (hasNewComments) {
+    showToast('ส่ง Comment แจ้งผู้ส่งแล้ว 💬', 'warn', '💬');
+  } else {
+    showToast('ส่งเรียบร้อย แจ้งเตือนผู้ส่งแล้ว 📨', 'success', '✅');
+  }
+
+  updateLocalTicket(id, { status: newStatus, items, worker_reply: codeList, replied_at: repliedAt, has_worker_comments: hasNewComments });
   renderWorkerDeptTabs();
   renderWorkerQueue();
+  renderWorkerDetail(id);
 }
 
 function updateLocalTicket(id, patch) {
@@ -2265,8 +2453,44 @@ function subscribeAsWorker() {
       b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
     })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'task_tickets' }, payload => {
+      const prev = workerTickets.find(t => t.id === payload.new.id);
+
+      // ── ตรวจ comment ใหม่จากฝั่งผู้ส่ง ──
+      const prevItems = Array.isArray(prev?.items) ? prev.items : [];
+      const newItems  = Array.isArray(payload.new.items) ? payload.new.items : [];
+      let newSenderCmt = null;
+      newItems.forEach((item, i) => {
+        const prevCmts = Array.isArray(prevItems[i]?.comments) ? prevItems[i].comments : [];
+        const curCmts  = Array.isArray(item.comments) ? item.comments : [];
+        const fresh = curCmts.filter(c => c.role === 'sender' && !prevCmts.find(p => p.id === c.id));
+        if (fresh.length && !newSenderCmt) {
+          newSenderCmt = { item, idx: i, text: fresh[0].text, author: fresh[0].author, ticketId: payload.new.id };
+        }
+      });
+
+      if (newSenderCmt) {
+        const t = payload.new;
+        const ref = t.ticket_ref || t.ticket_no || '';
+        const preview = newSenderCmt.text.slice(0, 60);
+        const label = `#${ref} ${t.sender_name} — รายการ ${newSenderCmt.idx + 1}`;
+        showToast(`💬 ${label}: "${preview}"`, 'warn', '💬');
+        notifyBrowser(`💬 ผู้ส่งตอบกลับ ${label}`, preview, { tag: 'sender-cmt-' + newSenderCmt.ticketId + '-' + newSenderCmt.idx });
+        showSenderCommentPopup(t, newSenderCmt);
+        // ถ้ากำลังดูงานนั้นอยู่ ให้ auto-expand comment row
+        if (payload.new.id === selectedTicketId) {
+          updateLocalTicket(payload.new.id, payload.new);
+          renderWorkerDetail(payload.new.id);
+          setTimeout(() => {
+            const cmtRow = document.getElementById(`cmtrow_${payload.new.id}_${newSenderCmt.idx}`);
+            const cmtBtn = document.getElementById(`cmtbtn_${payload.new.id}_${newSenderCmt.idx}`);
+            if (cmtRow) cmtRow.classList.add('open');
+            if (cmtBtn) cmtBtn.classList.add('open');
+          }, 80);
+        }
+      }
+
       updateLocalTicket(payload.new.id, payload.new);
-      if (payload.new.id === selectedTicketId) renderWorkerDetail(payload.new.id);
+      if (payload.new.id === selectedTicketId && !newSenderCmt) renderWorkerDetail(payload.new.id);
       renderWorkerDeptTabs();
       renderWorkerQueue();
     })
@@ -2320,9 +2544,10 @@ function renderAllQueue() {
   list.querySelectorAll('.queue-ro-card,.queue-section-label').forEach(el => el.remove());
   if (!allTickets.length) { empty.style.display = 'flex'; return; }
   empty.style.display = 'none';
-  const pending = allTickets.filter(t => t.status === 'pending');
-  const inprog = allTickets.filter(t => t.status === 'in_progress');
-  const done = allTickets.filter(t => t.status === 'done');
+  const pending    = allTickets.filter(t => t.status === 'pending');
+  const inprog     = allTickets.filter(t => t.status === 'in_progress');
+  const commented  = allTickets.filter(t => t.status === 'commented');
+  const done       = allTickets.filter(t => t.status === 'done');
   const myIds = new Set(myTokens.map(t => t.id));
   function addSection(label, tickets) {
     if (!tickets.length) return;
@@ -2331,8 +2556,9 @@ function renderAllQueue() {
   }
   addSection('รอดำเนินการ', pending);
   addSection('กำลังดำเนินการ', inprog);
+  addSection('💬 มี Comment รอตอบกลับ', commented);
   addSection('เสร็จแล้ว', done);
-  const activeCount = pending.length + inprog.length;
+  const activeCount = pending.length + inprog.length + commented.length;
   const badge = document.getElementById('allQueueCount');
   badge.textContent = activeCount || '';
   badge.style.background = activeCount > 0 ? 'rgba(255,59,48,0.15)' : '';
@@ -2458,7 +2684,7 @@ async function saveEditTicket() {
   if (!name) { showToast('กรุณาใส่ชื่อ', 'warn', '⚠️'); return; }
   const dept    = document.getElementById('editDept').value;
   const subject = document.getElementById('editSubject').value.trim();
-  if (!newItems.length) { showToast('กรุณาใส่รายการอย่างน้อย 1 รายการ', 'warn', '⚠️'); return; }
+
   const { data: current } = await sb.from('task_tickets').select('items').eq('id', id).single();
   const oldItems = Array.isArray(current?.items) ? current.items : [];
   const newItems = [...document.querySelectorAll('#editItemRows .item-row')].map((row, i) => ({
@@ -2467,6 +2693,9 @@ async function saveEditTicket() {
     code: oldItems[i]?.code || '',
     comments: oldItems[i]?.comments || []
   })).filter(it => it.description);
+
+  if (!newItems.length) { showToast('กรุณาใส่รายการอย่างน้อย 1 รายการ', 'warn', '⚠️'); return; }
+
   const btn = document.querySelector('#editModal .btn-purple');
   btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
   const { error } = await sb.from('task_tickets').update({
@@ -2695,6 +2924,7 @@ document.addEventListener('keydown', e => {
     closeDeptManager();
     closeSettings();
     closeDonePopup();
+    closeSenderCmtPopup();
     closeWorkerNewPopup();
   }
 });
@@ -2885,8 +3115,56 @@ window.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
     </div>
+
+    <div id="senderCmtPopup" onclick="if(event.target===this)closeSenderCmtPopup()">
+      <div class="scp-box">
+        <div class="scp-head">
+          <div class="scp-icon">💬</div>
+          <div>
+            <div class="wnp-title" id="scpTitle">ผู้ส่งตอบกลับ</div>
+            <div class="wnp-sub" id="scpSub"></div>
+          </div>
+        </div>
+        <div class="scp-body" id="scpBody"></div>
+        <div class="scp-footer">
+          <button class="btn btn-ghost btn-sm" onclick="closeSenderCmtPopup()">ปิด</button>
+          <button class="btn btn-purple" id="scpGoBtn">ไปดูงาน →</button>
+        </div>
+      </div>
+    </div>
   `);
 });
+
+let _scpPendingTicketId = null, _scpPendingItemIdx = null;
+
+function showSenderCommentPopup(ticket, cmt) {
+  const ref = ticket.ticket_ref || ticket.ticket_no || '';
+  const el = id => document.getElementById(id);
+  el('scpTitle').textContent = `💬 ${cmt.author} ตอบกลับ`;
+  el('scpSub').textContent   = `#${ref} · ${ticket.sender_name} — รายการที่ ${cmt.idx + 1}`;
+  el('scpBody').textContent  = cmt.text;
+  _scpPendingTicketId = ticket.id;
+  _scpPendingItemIdx  = cmt.idx;
+  el('scpGoBtn').onclick = () => {
+    closeSenderCmtPopup();
+    selectTicket(_scpPendingTicketId);
+    setTimeout(() => {
+      const cmtRow = document.getElementById(`cmtrow_${_scpPendingTicketId}_${_scpPendingItemIdx}`);
+      const cmtBtn = document.getElementById(`cmtbtn_${_scpPendingTicketId}_${_scpPendingItemIdx}`);
+      if (cmtRow) cmtRow.classList.add('open');
+      if (cmtBtn) cmtBtn.classList.add('open');
+    }, 120);
+  };
+  const popup = el('senderCmtPopup');
+  popup.classList.add('open');
+  clearTimeout(popup._autoClose);
+  popup._autoClose = setTimeout(closeSenderCmtPopup, 20000);
+}
+
+function closeSenderCmtPopup() {
+  const popup = document.getElementById('senderCmtPopup');
+  if (popup) { popup.classList.remove('open'); clearTimeout(popup._autoClose); }
+}
 </script>
 </body>
 </html>
