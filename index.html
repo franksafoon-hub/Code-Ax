@@ -1972,7 +1972,10 @@ function renderWorkerQueue() {
 
   // Total counts (all depts for badge)
   const totalPending = workerTickets.filter(t => t.status !== 'done').length;
-  document.getElementById('workerQueueCount').textContent = workerTickets.length + ' งาน';
+  const activeCount2 = workerTickets.filter(t => t.status !== 'done').length;
+  const totalCount   = workerTickets.length;
+  document.getElementById('workerQueueCount').textContent =
+    `${activeCount2} งานค้าง · รวม ${totalCount}`;
   const badge = document.getElementById('workerPendingBadge');
   badge.style.display = totalPending ? 'flex' : 'none';
   badge.textContent = totalPending;
@@ -2266,22 +2269,46 @@ function cancelWorkerEdit(id) {
 async function saveWorkerEdit(id) {
   const ticket = workerTickets.find(t => t.id === id);
   if (!ticket) return;
-  const items = Array.isArray(ticket.items) ? ticket.items : [];
 
-  // Sync values from DOM inputs
-  items.forEach((item, i) => {
-    const input = document.getElementById(`code_${id}_${i}`);
-    if (input) item.code = input.value.trim();
-  });
+  // Fetch fresh items
+  const { data: fresh } = await sb.from('task_tickets').select('items').eq('id', id).single();
+  const items = Array.isArray(fresh?.items) ? JSON.parse(JSON.stringify(fresh.items))
+    : Array.isArray(ticket.items) ? JSON.parse(JSON.stringify(ticket.items)) : [];
+
+  // Sync code values + collect new comments
+  let hasNewComments = false;
+  for (let i = 0; i < items.length; i++) {
+    const codeInput = document.getElementById(`code_${id}_${i}`);
+    if (codeInput) items[i] = { ...items[i], code: codeInput.value.trim() || items[i].code || '' };
+
+    const cmtInput = document.getElementById(`itemCmtInput_${id}_${i}`);
+    if (cmtInput && cmtInput.value.trim()) {
+      hasNewComments = true;
+      const existingCmts = Array.isArray(items[i].comments) ? items[i].comments : [];
+      items[i] = { ...items[i], comments: [...existingCmts, {
+        id: Math.random().toString(36).slice(2),
+        role: 'worker', author: 'คนทำงาน',
+        text: cmtInput.value.trim(),
+        created_at: new Date().toISOString()
+      }]};
+      cmtInput.value = ''; cmtInput.style.height = '';
+    }
+  }
 
   const btn = document.querySelector('#workerReplyArea .btn-purple');
   if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก...'; }
 
-  const codeList = items.map((it, i) => `${i+1}. ${it.code || '—'}`).join('\n');
+  const codeList  = items.map((it, i) => `${i+1}. ${it.code || '—'}`).join('\n');
+  // ถ้ามี comment ใหม่ → เปลี่ยนสถานะเป็น commented (ไม่ใช่ done อีกต่อไป)
+  const newStatus = hasNewComments ? 'commented' : 'done';
+  const repliedAt = hasNewComments ? null : new Date().toISOString();
+
   const { error } = await sb.from('task_tickets').update({
+    status: newStatus,
     items,
     worker_reply: codeList,
-    replied_at: new Date().toISOString()
+    replied_at: repliedAt,
+    has_worker_comments: hasNewComments
   }).eq('id', id);
 
   if (error) {
@@ -2290,11 +2317,12 @@ async function saveWorkerEdit(id) {
     return;
   }
 
-  updateLocalTicket(id, { items, worker_reply: codeList });
+  updateLocalTicket(id, { status: newStatus, items, worker_reply: codeList, replied_at: repliedAt, has_worker_comments: hasNewComments });
   workerEditSet.delete(id);
+  renderWorkerDeptTabs();
   renderWorkerQueue();
   renderWorkerDetail(id);
-  showToast('บันทึกการแก้ไขเรียบร้อย ✓', 'success', '💾');
+  showToast(hasNewComments ? 'ส่ง Comment แจ้งผู้ส่งแล้ว 💬' : 'บันทึกเรียบร้อย ✓', hasNewComments ? 'warn' : 'success', hasNewComments ? '💬' : '💾');
 }
 
 
