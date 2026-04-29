@@ -656,7 +656,33 @@ body {
 .sender-item-cmts-row.open { display:table-row; }
 .sender-item-cmts-cell { padding:8px 12px !important;border-bottom:2px solid rgba(255,149,0,0.15) !important; }
 
-.shake { animation:shake 0.5s ease; }
+/* ─── WORKER FILE ATTACH ─── */
+.worker-attach-zone {
+  border:1.5px dashed rgba(255,149,0,0.35);
+  border-radius:8px;padding:10px 12px;
+  text-align:center;cursor:pointer;transition:all 0.15s;
+  background:rgba(255,149,0,0.03);
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  color:var(--orange);font-size:12px;
+}
+.worker-attach-zone:hover,.worker-attach-zone.drag-over {
+  background:rgba(255,149,0,0.08);border-color:rgba(255,149,0,0.6);
+}
+.worker-attach-preview {
+  display:flex;align-items:center;gap:7px;
+  background:rgba(255,250,240,0.9);border:1px solid rgba(255,149,0,0.2);
+  border-radius:7px;padding:6px 10px;font-size:12px;animation:slideIn 0.15s ease;
+}
+.worker-attach-chip {
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(255,149,0,0.08);border:1px solid rgba(255,149,0,0.2);
+  border-radius:7px;padding:5px 10px;font-size:12px;color:var(--orange);
+  cursor:pointer;transition:all 0.13s;max-width:100%;overflow:hidden;
+}
+.worker-attach-chip:hover { background:rgba(255,149,0,0.16); }
+.worker-attach-chip span { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+
+
 .badge-count { background:var(--red);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center; }
 </style>
 </head>
@@ -1012,6 +1038,7 @@ let workerTickets = [];
 let senderChannel = null, workerChannel = null;
 let currentMode = null;
 let senderPendingFiles = [];
+let workerPendingFiles = []; // ไฟล์ที่ worker จะแนบกลับ
 let fillState = null;
 let workerEditSet = new Set();
 
@@ -1761,6 +1788,17 @@ function buildTicketCardHTML(ticket) {
       </button>`).join('')}
     </div>` : '';
 
+  const workerAttachments = Array.isArray(ticket.worker_attachments) ? ticket.worker_attachments : [];
+  const workerAttachHtml = workerAttachments.length ? `
+    <div style="display:flex;flex-direction:column;gap:4px;margin-top:2px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--orange)">📎 ไฟล์จากคนทำงาน</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${workerAttachments.map(f => `<button class="worker-attach-chip" onclick="openFile('${escHtml(f.path)}','${escHtml(f.name)}','${escHtml(f.type||'')}')">
+          ${fileIcon(f.name)} <span>${escHtml(f.name)}</span>
+        </button>`).join('')}
+      </div>
+    </div>` : '';
+
   const myToken = myTokens.find(t=>t.id===ticket.id);
   const senderAuthor = myToken?.name || ticket.sender_name || 'ผู้ส่ง';
 
@@ -1799,6 +1837,7 @@ function buildTicketCardHTML(ticket) {
     ${subject ? `<div style="font-size:12px;font-weight:600;color:var(--text2);padding:1px 0 2px;display:flex;align-items:center;gap:5px"><span style="opacity:0.5">📌</span>${escHtml(subject)}</div>` : ''}
     ${itemsHtml}
     ${attachChipsHtml}
+    ${workerAttachHtml}
     ${replyHtml}
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-top:4px">
       <div style="display:flex;flex-direction:column;gap:1px">
@@ -1904,9 +1943,10 @@ function subscribeAsSender() {
       if (updated.status === 'done') {
         const items = Array.isArray(updated.items) ? updated.items : [];
         const codeList = items.map(it => it.code || 'OK').join(', ');
+        const wFiles = Array.isArray(updated.worker_attachments) ? updated.worker_attachments : [];
         showDonePopup(updated);
-        showToast(`#${updated.ticket_ref || updated.ticket_no} ได้ Code แล้ว! ${codeList}`, 'success', '🎉');
-        notifyBrowser(`Code พร้อม #${updated.ticket_ref || updated.ticket_no}`, codeList, { tag: 'done-' + updated.id });
+        showToast(`#${updated.ticket_ref || updated.ticket_no} ได้ Code แล้ว!${wFiles.length ? ` · 📎 ${wFiles.length} ไฟล์` : ''}`, 'success', '🎉');
+        notifyBrowser(`Code พร้อม #${updated.ticket_ref || updated.ticket_no}`, codeList + (wFiles.length ? ` · มีไฟล์ ${wFiles.length} รายการ` : ''), { tag: 'done-' + updated.id });
       } else if (updated.status === 'commented') {
         const ref = updated.ticket_ref || updated.ticket_no || '';
         showToast(`💬 #${ref} คนทำงานมี Comment รอตอบกลับ`, 'warn', '💬');
@@ -2181,6 +2221,23 @@ function renderWorkerDetail(id) {
     inner.appendChild(attachWrap);
   }
 
+  // ไฟล์ที่ worker ส่งกลับ (แสดงเฉพาะตอน done)
+  const wAttachments = Array.isArray(ticket.worker_attachments) ? ticket.worker_attachments : [];
+  if (wAttachments.length) {
+    const wAttachWrap = document.createElement('div');
+    wAttachWrap.style.cssText = 'display:flex;flex-direction:column;gap:5px;';
+    wAttachWrap.innerHTML = `<div class="attach-section-label" style="color:var(--orange)">📎 ไฟล์ที่ส่งกลับ</div>`;
+    wAttachments.forEach(f => {
+      const btn = document.createElement('button');
+      btn.className = 'worker-attach-chip';
+      btn.style.cssText = 'width:100%;justify-content:flex-start;';
+      btn.innerHTML = `${fileIcon(f.name)} <span>${escHtml(f.name)}</span> <span style="margin-left:auto;font-size:10px;color:var(--text3);flex-shrink:0">${fmtSize(f.size||0)}</span>`;
+      btn.onclick = () => openFile(f.path, f.name, f.type||'');
+      wAttachWrap.appendChild(btn);
+    });
+    inner.appendChild(wAttachWrap);
+  }
+
   const replyArea = document.getElementById('workerReplyArea');
   const isCommented = ticket.status === 'commented';
 
@@ -2211,11 +2268,23 @@ function renderWorkerDetail(id) {
       <div style="font-size:11px;color:var(--text3)">ถ้าแก้ไขเสร็จแล้ว กด "ยืนยันเสร็จสมบูรณ์" · หรือพิมพ์ Comment ด้านบนแล้วกดปุ่มเพื่อส่งเพิ่ม</div>`;
 
   } else {
+    workerPendingFiles = []; // reset เมื่อ render ใหม่
     replyArea.innerHTML = `
       <div style="display:flex;gap:8px;margin-top:2px">
         ${ticket.status === 'pending' ? `<button class="btn btn-ghost btn-sm" onclick="setInProgress('${id}')">⚙️ รับงาน</button>` : ''}
-        <button class="btn btn-green" style="flex:1" onclick="markDone('${id}')">✅ ยืนยัน — แจ้งเตือนกลับ</button>
+        <button class="btn btn-green" style="flex:1" id="markDoneBtn_${id}" onclick="markDone('${id}')">✅ ยืนยัน — แจ้งเตือนกลับ</button>
       </div>
+      <div class="worker-attach-zone" id="workerAttachZone_${id}"
+        onclick="document.getElementById('workerFileInput_${id}').click()"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="event.preventDefault();this.classList.remove('drag-over');workerFileSelected(event.dataTransfer.files,'${id}')">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 3v10M6 7l4-4 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 15h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        📎 แนบไฟล์ส่งกลับ (สูงสุด 5 ไฟล์ · 10MB/ไฟล์)
+      </div>
+      <input type="file" id="workerFileInput_${id}" multiple accept="*/*" style="display:none"
+        onchange="workerFileSelected(this.files,'${id}');this.value=''">
+      <div id="workerFileList_${id}" style="display:flex;flex-direction:column;gap:4px"></div>
       <div style="font-size:11px;color:var(--text3)">กรอก Code ด้านบน · ถ้ามี Comment ในช่องรายการ จะส่งเป็น <b>💬 มี Comment</b> แทน done</div>`;
   }
 }
@@ -2433,12 +2502,18 @@ async function markDone(id) {
   const codeList   = items.map((it, i) => `${i+1}. ${it.code || '—'}`).join('\n');
   const repliedAt  = newStatus === 'done' ? new Date().toISOString() : null;
 
+  // ─── Upload worker files ───
+  let workerAttachments = [];
+  if (workerPendingFiles.length > 0 && btn) btn.textContent = `อัปโหลดไฟล์...`;
+  workerAttachments = await uploadFiles(workerPendingFiles, id);
+
   const { error } = await sb.from('task_tickets').update({
     status: newStatus,
     items,
     worker_reply: codeList,
     replied_at: repliedAt,
-    has_worker_comments: hasNewComments
+    has_worker_comments: hasNewComments,
+    worker_attachments: workerAttachments
   }).eq('id', id);
 
   if (error) {
@@ -2450,10 +2525,11 @@ async function markDone(id) {
   if (hasNewComments) {
     showToast('ส่ง Comment แจ้งผู้ส่งแล้ว 💬', 'warn', '💬');
   } else {
-    showToast('ส่งเรียบร้อย แจ้งเตือนผู้ส่งแล้ว 📨', 'success', '✅');
+    showToast(`ส่งเรียบร้อย แจ้งเตือนผู้ส่งแล้ว 📨${workerAttachments.length ? ` · 📎 ${workerAttachments.length} ไฟล์` : ''}`, 'success', '✅');
   }
+  workerPendingFiles = [];
 
-  updateLocalTicket(id, { status: newStatus, items, worker_reply: codeList, replied_at: repliedAt, has_worker_comments: hasNewComments });
+  updateLocalTicket(id, { status: newStatus, items, worker_reply: codeList, replied_at: repliedAt, has_worker_comments: hasNewComments, worker_attachments: workerAttachments });
   renderWorkerDeptTabs();
   renderWorkerQueue();
   renderWorkerDetail(id);
@@ -2812,7 +2888,35 @@ function autoResizeEl(el) {
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
-// Worker: toggle expand comment row for item i
+// ─── WORKER FILE ATTACHMENT ───
+function workerFileSelected(fileList, ticketId) {
+  const MAX = 10 * 1024 * 1024;
+  [...fileList].forEach(file => {
+    if (file.size > MAX) { showToast(`${file.name} ใหญ่เกิน 10MB`, 'warn', '⚠️'); return; }
+    if (workerPendingFiles.length >= 5) { showToast('แนบได้สูงสุด 5 ไฟล์', 'warn', '⚠️'); return; }
+    workerPendingFiles.push(file);
+    renderWorkerFileList(ticketId);
+  });
+}
+
+function removeWorkerFile(idx, ticketId) {
+  workerPendingFiles.splice(idx, 1);
+  renderWorkerFileList(ticketId);
+}
+
+function renderWorkerFileList(ticketId) {
+  const list = document.getElementById(`workerFileList_${ticketId}`);
+  if (!list) return;
+  list.innerHTML = workerPendingFiles.map((f, i) => `
+    <div class="worker-attach-preview">
+      <span class="attach-file-icon">${fileIcon(f.name)}</span>
+      <span class="attach-file-name" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${escHtml(f.name)}</span>
+      <span class="attach-file-size">${fmtSize(f.size)}</span>
+      <button class="attach-del-btn" onclick="removeWorkerFile(${i},'${ticketId}')">✕</button>
+    </div>`).join('');
+}
+
+
 function toggleItemComments(ticketId, itemIdx) {
   const cmtRow = document.getElementById(`cmtrow_${ticketId}_${itemIdx}`);
   const cmtBtn = document.getElementById(`cmtbtn_${ticketId}_${itemIdx}`);
