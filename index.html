@@ -914,7 +914,7 @@ body {
           <span>📌 หัวเรื่อง <span style="font-size:10px;color:var(--text3);font-weight:400">(ไม่บังคับ)</span></span>
         </div>
         <input type="text" class="form-input" id="senderSubject"
-          placeholder="เช่น โครงการ A, BO69-0277, งานพี่..."
+          placeholder="เช่น โครงการ A, BO69-0277, งานพี่จ๋อม..."
           oninput="localStorage.setItem('dispatch_sender_subject', this.value)">
       </div>
 
@@ -2115,9 +2115,43 @@ function getFilteredTickets() {
   const list = selectedWorkerDept === 'all'
     ? workerTickets
     : workerTickets.filter(t => (t.department || '') === selectedWorkerDept);
-  // เรียงตาม created_at เก่าสุดก่อน (ต่อคิวตามลำดับ)
   return [...list].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 }
+
+function sortWorkerItems(ticketId, mode) {
+  const ticket = workerTickets.find(t => t.id === ticketId);
+  if (!ticket || !Array.isArray(ticket.items)) return;
+
+  if (mode === 'original') {
+    // restore from DB — reload detail
+    renderWorkerDetail(ticketId);
+    return;
+  }
+
+  const sorted = [...ticket.items].sort((a, b) => {
+    const da = a.description || '';
+    const db = b.description || '';
+    return mode === 'asc'
+      ? da.localeCompare(db, 'th')
+      : db.localeCompare(da, 'th');
+  });
+
+  // Swap items in local copy (ไม่ save ลง DB — แค่แสดงผล)
+  const tempTicket = { ...ticket, items: sorted };
+  // Re-render detail with sorted items
+  const origItems = ticket.items;
+  ticket.items = sorted;
+  renderWorkerDetail(ticketId);
+  ticket.items = origItems; // restore (local display only)
+
+  // Restore select value after re-render
+  setTimeout(() => {
+    const sel = document.getElementById(`itemSortSelect_${ticketId}`);
+    if (sel) sel.value = mode;
+  }, 30);
+}
+
+
 
 function renderWorkerQueue() {
   const list = document.getElementById('workerQueueList');
@@ -2228,7 +2262,17 @@ function renderWorkerDetail(id) {
     table.className = 'worker-items-table';
     table.innerHTML = `<thead><tr>
       <th class="wt-no">#</th>
-      <th>รายละเอียด <span style="font-weight:400;opacity:0.6;font-size:10px">(คลิก copy)</span></th>
+      <th>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span>รายละเอียด <span style="font-weight:400;opacity:0.6;font-size:10px">(คลิก copy)</span></span>
+          <select id="itemSortSelect_${id}" onchange="sortWorkerItems('${id}',this.value)"
+            style="font-size:10px;padding:2px 5px;border:1px solid var(--border2);border-radius:5px;background:white;color:var(--text2);cursor:pointer;font-family:-apple-system,'Sarabun',sans-serif;outline:none;font-weight:400">
+            <option value="original">ตามลำดับเดิม</option>
+            <option value="asc">🔤 ก → ฮ</option>
+            <option value="desc">🔤 ฮ → ก</option>
+          </select>
+        </div>
+      </th>
       <th style="width:170px;text-align:center">Code AX <span style="font-weight:400;opacity:0.6;font-size:10px">(คลิก copy)</span></th>
       <th style="width:40px;text-align:center" title="ความคิดเห็น">💬</th>
     </tr></thead>`;
