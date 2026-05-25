@@ -1759,7 +1759,6 @@ function enterWorker() {
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
   loadWorkerQueue();
   subscribeAsWorker();
-  setTimeout(cleanupOldTickets, 3000);
 }
 
 // ─── SENDER: SUBMIT ───
@@ -3398,21 +3397,8 @@ async function deleteTicketById(id) {
   await sb.from('task_tickets').delete().eq('id', id);
 }
 
-// ─── CLEANUP ───
-async function cleanupOldTickets() {
-  try {
-    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: expired } = await sb.from('task_tickets').select('id,attachments,worker_attachments').lt('created_at', cutoff);
-    if (!expired || !expired.length) return;
-    const pathsToDelete = [];
-    for (const ticket of expired) {
-      [...(Array.isArray(ticket.attachments) ? ticket.attachments : []), ...(Array.isArray(ticket.worker_attachments) ? ticket.worker_attachments : [])].forEach(f => { if (f.path) pathsToDelete.push(f.path); });
-    }
-    if (pathsToDelete.length) for (let i = 0; i < pathsToDelete.length; i += 100) await sb.storage.from(BUCKET).remove(pathsToDelete.slice(i, i + 100));
-    await sb.from('task_tickets').delete().in('id', expired.map(t => t.id));
-    if (expired.length > 0) showToast(`🧹 ล้างข้อมูลเก่า ${expired.length} รายการ`, 'info', '🧹');
-  } catch (err) { console.error('Cleanup error:', err); }
-}
+
+
 
 // ─── KEYBOARD ───
 document.addEventListener('keydown', e => {
