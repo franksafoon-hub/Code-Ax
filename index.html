@@ -1160,11 +1160,53 @@ let fillState = null;
 let workerEditSet = new Set();
 
 // ─── DEPARTMENTS ───
-let departments = JSON.parse(localStorage.getItem('dispatch_departments') || '["PE","Designer"]');
+let departments = [];
+let deptChannel = null;
 let selectedWorkerDept = 'all';
 
-function saveDepartments() {
+async function saveDepartments() {
+  localStorage.setItem('dispatch_departments', JSON.stringify(departments)); // cache ในเครื่อง
+  try {
+    const { error } = await sb.from('app_config').upsert(
+      { key: 'departments', value: departments }, { onConflict: 'key' });
+    if (error) console.error('saveDepartments:', error.message);
+  } catch (e) { console.error('saveDepartments:', e); }
+}
+
+async function loadDepartments() {
+  try {
+    const { data, error } = await sb.from('app_config')
+      .select('value').eq('key', 'departments').maybeSingle();
+    if (!error && Array.isArray(data?.value)) departments = data.value;
+    else { const c = localStorage.getItem('dispatch_departments'); if (c) departments = JSON.parse(c); }
+  } catch (e) {
+    const c = localStorage.getItem('dispatch_departments'); if (c) try { departments = JSON.parse(c); } catch(_){}
+  }
   localStorage.setItem('dispatch_departments', JSON.stringify(departments));
+  renderAllDeptDropdowns();
+  renderWorkerDeptTabs();
+  const saved = localStorage.getItem('dispatch_sender_dept');
+  const sel = document.getElementById('senderDept');
+  if (sel && saved && [...sel.options].some(o => o.value === saved)) sel.value = saved;
+}
+
+function subscribeDepartments() {
+  if (deptChannel) sb.removeChannel(deptChannel);
+  deptChannel = sb.channel('dept-config')
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'app_config', filter: 'key=eq.departments' },
+      payload => {
+        const val = payload.new?.value;
+        if (!Array.isArray(val)) return;
+        departments = val;
+        localStorage.setItem('dispatch_departments', JSON.stringify(departments));
+        renderAllDeptDropdowns();
+        renderWorkerDeptTabs();
+        const list = document.getElementById('deptInlineList');
+        if (list && typeof buildDeptInlineListHTML === 'function') list.innerHTML = buildDeptInlineListHTML();
+        showToast('รายชื่อแผนกอัปเดตแล้ว 🔄', 'info', '🏢');
+      })
+    .subscribe();
 }
 
 function deptColorClass(name) {
@@ -1697,6 +1739,7 @@ function escHtml(s) {
 function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 
 function goHome() {
+  if (deptChannel) { sb.removeChannel(deptChannel); deptChannel = null; }
   if (senderChannel) { sb.removeChannel(senderChannel); senderChannel = null; }
   if (workerChannel) { sb.removeChannel(workerChannel); workerChannel = null; }
   if (currentMode === 'worker') sessionStorage.removeItem('workerAuthed');
@@ -1725,6 +1768,8 @@ function enterSender() {
     const sel = document.getElementById('senderDept');
     if ([...sel.options].some(o => o.value === savedDept)) sel.value = savedDept;
   }
+  loadDepartments();
+  subscribeDepartments();
   loadMyTickets();
   loadAllQueue();
   subscribeAsSender();
@@ -1757,6 +1802,8 @@ function enterWorker() {
   document.getElementById('welcomeDateTime').style.display = 'none';
   document.getElementById('welcomeSettingsBtn').style.display = 'none';
   if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+  loadDepartments();
+  subscribeDepartments();
   loadWorkerQueue();
   subscribeAsWorker();
 }
