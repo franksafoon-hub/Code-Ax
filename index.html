@@ -789,6 +789,190 @@ body {
 .badge-count { background:var(--red);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center; }
 </style>
 </head>
+  <!-- ═══════════════════════════════════════════════════════════════
+     FITTING GLOBAL ADD-ON (READ-ONLY) — ปุ่มอยู่บน head bar + กัน timeout
+     วางบล็อกนี้ "ก่อน </body>" ในไฟล์แอปของคุณ  (ใช้ตัวแปรเดิม: sb)
+     ═══════════════════════════════════════════════════════════════ -->
+<style>
+.fg-overlay{position:fixed;inset:0;background:rgba(0,0,0,.25);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:7000;display:flex;align-items:center;justify-content:center}
+.fg-modal{background:white;border-radius:14px;border:1px solid var(--border);width:92vw;max-width:1100px;height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow-lg)}
+.fg-head{background:rgba(246,246,248,0.95);padding:11px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.fg-title{font-size:13px;font-weight:600;color:var(--text);flex:1}
+.fg-ro{font-size:10px;font-weight:600;color:var(--text2);background:var(--s3);border:1px solid var(--border);border-radius:20px;padding:2px 9px}
+.fg-dot{width:8px;height:8px;border-radius:50%;background:var(--text3)}
+.fg-dot.ok{background:var(--green)}.fg-dot.err{background:var(--red)}.fg-dot.busy{background:var(--orange);animation:fgfp .8s infinite alternate}
+@keyframes fgfp{from{opacity:.4}to{opacity:1}}
+.fg-dtxt{font-size:11px;color:var(--text2)}
+.fg-x{background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;line-height:1;padding:0 4px}
+.fg-x:hover{color:var(--red)}
+.fg-sbar{background:#f5f5fa;padding:6px 14px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.fg-s{font-size:11px;color:var(--text2)}.fg-s b{color:var(--text);font-family:Menlo,monospace}
+.fg-bar{background:rgba(246,246,248,0.9);padding:8px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.fgsb{background:rgba(255,255,255,0.9);border:1px solid var(--border2);border-radius:8px;padding:5px 11px;color:var(--text);font-size:12px;outline:none;width:260px;font-family:-apple-system,'Sarabun',sans-serif}
+.fgsb:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.fgb{border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:-apple-system,'Sarabun',sans-serif;font-weight:500;white-space:nowrap;transition:all .13s}
+.fgbo{background:var(--orange-dim);color:var(--orange);border:1px solid rgba(255,149,0,0.2)}.fgbo:hover{background:rgba(255,149,0,0.2)}
+.fgbx{background:var(--s3);color:var(--text2);border:1px solid var(--border)}.fgbx:hover{color:var(--text);background:white}
+.fg-body{flex:1;overflow:auto;background:#f9f9fb}
+.fgt{width:100%;border-collapse:collapse;font-size:12px}
+.fgt th{background:#f2f2f7;color:var(--text2);padding:6px 12px;text-align:left;font-weight:600;font-size:10px;letter-spacing:.4px;text-transform:uppercase;border-bottom:1px solid rgba(0,0,0,0.07);white-space:nowrap;position:sticky;top:0;z-index:2;cursor:pointer;user-select:none}
+.fgt th:hover{color:var(--text)}
+.fgt td{padding:6px 12px;border-bottom:1px solid rgba(0,0,0,0.05);color:var(--text2);vertical-align:middle}
+.fgt tr:hover td{background:rgba(0,122,255,0.04)}
+.fgcode{font-family:Menlo,monospace;font-size:11px;color:var(--accent)}
+.fgunit{font-size:10px;padding:1px 7px;border-radius:20px;background:var(--green-dim);color:var(--green)}
+.fgcat{color:var(--text3);font-size:11px}
+.fg-pg{background:rgba(246,246,248,0.9);padding:8px 14px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--border);flex-shrink:0}
+.pgb{background:rgba(255,255,255,0.8);border:1px solid var(--border2);border-radius:5px;padding:4px 10px;font-size:11px;color:var(--text2);cursor:pointer;font-family:-apple-system,'Sarabun',sans-serif;transition:all .13s}
+.pgb:hover:not([disabled]){color:var(--text);background:white;box-shadow:var(--shadow-sm)}.pgb[disabled]{opacity:.3;cursor:default}
+.pgi{font-size:11px;color:var(--text2);flex:1;text-align:center}
+.pgsz{background:rgba(255,255,255,0.8);border:1px solid var(--border2);border-radius:5px;color:var(--text2);font-size:11px;padding:3px 6px;outline:none}
+/* ปุ่มบน head bar */
+.fg-topbtn{background:var(--orange-dim);border:1px solid rgba(255,149,0,0.3);color:var(--orange);border-radius:7px;padding:4px 11px;font-size:12px;font-weight:600;cursor:pointer;font-family:-apple-system,'Sarabun',sans-serif;display:inline-flex;align-items:center;gap:5px;transition:all .13s;white-space:nowrap}
+.fg-topbtn:hover{background:rgba(255,149,0,0.2)}
+</style>
+
+<!-- Main overlay (READ-ONLY) -->
+<div class="fg-overlay" id="fgOv" style="display:none" onclick="if(event.target===this)closeFG()">
+  <div class="fg-modal">
+    <div class="fg-head">
+      <span style="font-size:15px">⚙</span>
+      <span class="fg-title">Fitting Global — ฐานข้อมูลชิ้นส่วน</span>
+      <span class="fg-ro">👁 ดูอย่างเดียว</span>
+      <div class="fg-dot busy" id="fgDot"></div>
+      <span class="fg-dtxt" id="fgDtxt">กำลังเชื่อมต่อ...</span>
+      <button class="fg-x" onclick="closeFG()">&#x2715;</button>
+    </div>
+    <div class="fg-sbar">
+      <div class="fg-s">ทั้งหมด: <b id="fgTotal">-</b></div>
+      <div class="fg-s">หน้า: <b id="fgPgStat">-</b></div>
+      <span style="margin-left:auto;font-size:10px;color:var(--text3)" id="fgTime"></span>
+    </div>
+    <div class="fg-bar">
+      <input class="fgsb" type="text" id="fgSB" placeholder="&#128269; ค้นหา item / ชื่อ / search name..." oninput="fgSearch()">
+      <button class="fgb fgbx" onclick="fgLoad()">&#8635; รีเฟรช</button>
+      <button class="fgb fgbo" onclick="fgExport()">&#128228; Export CSV</button>
+      <span style="margin-left:auto;font-size:11px;color:var(--text2)">แสดง <b id="fgStC">-</b> รายการ</span>
+    </div>
+    <div class="fg-body">
+      <table class="fgt">
+        <thead><tr>
+          <th style="width:48px;cursor:default">#</th>
+          <th onclick="fgSort('item_number')">Item Number</th>
+          <th onclick="fgSort('product_name')">Product Name</th>
+          <th onclick="fgSort('unit')" style="width:90px">Unit</th>
+          <th onclick="fgSort('search_name')">Search Name</th>
+        </tr></thead>
+        <tbody id="fgBody"><tr><td colspan="5" style="padding:40px;text-align:center;color:var(--text3)">กดเปิดเพื่อโหลดข้อมูล</td></tr></tbody>
+      </table>
+    </div>
+    <div class="fg-pg">
+      <button class="pgb" id="pgF" onclick="fgGo(0)">&#171;</button>
+      <button class="pgb" id="pgP" onclick="fgGo(fgP-1)">&#8249;</button>
+      <span class="pgi" id="fgPI">-</span>
+      <button class="pgb" id="pgN" onclick="fgGo(fgP+1)">&#8250;</button>
+      <button class="pgb" id="pgL" onclick="fgGo(fgTP-1)">&#187;</button>
+      <select class="pgsz" onchange="fgPS=parseInt(this.value);fgP=0;fgLoad()">
+        <option value="50">50/หน้า</option><option value="100">100/หน้า</option><option value="200">200/หน้า</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function db(){ return sb.from('fitting_global'); }
+  window.fgP=0; window.fgPS=50; var fgTC=0; window.fgTP=1;
+  var fgQ='', fgSC='item_number', fgSA=true, fgST;
+
+  window.openFG=function(){ document.getElementById('fgOv').style.display='flex'; fgChk(); fgLoad(); };
+  window.closeFG=function(){ document.getElementById('fgOv').style.display='none'; };
+
+  async function fgChk(){
+    var dot=document.getElementById('fgDot'), txt=document.getElementById('fgDtxt');
+    dot.className='fg-dot busy'; txt.textContent='กำลังเชื่อมต่อ...';
+    try{ var r=await db().select('item_number',{count:'estimated',head:true}); if(r.error) throw r.error;
+      dot.className='fg-dot ok'; txt.textContent='เชื่อมต่อสำเร็จ';
+      document.getElementById('fgTotal').textContent=(r.count||0).toLocaleString()+' (โดยประมาณ)';
+    }catch(e){ dot.className='fg-dot err'; txt.textContent='เชื่อมต่อไม่ได้'; }
+  }
+
+  window.fgLoad=async function(){
+    document.getElementById('fgBody').innerHTML='<tr><td colspan="5" style="padding:30px;text-align:center;color:var(--text3)">&#9203; กำลังโหลด...</td></tr>';
+    var from=fgP*fgPS, to=from+fgPS-1, cols='item_number,product_name,search_name,unit';
+    // ใช้ count:'estimated' (เร็ว ไม่สแกนทั้งตาราง) แทน exact -> กัน statement timeout
+    var q = fgQ
+      ? db().select(cols,{count:'estimated'}).or('item_number.ilike.%'+fgQ+'%,product_name.ilike.%'+fgQ+'%,search_name.ilike.%'+fgQ+'%').order(fgSC,{ascending:fgSA}).range(from,to)
+      : db().select(cols,{count:'estimated'}).order(fgSC,{ascending:fgSA}).range(from,to);
+    var res=await q;
+    if(res.error){
+      var m=res.error.message||''; 
+      var hint = /timeout/i.test(m) ? '<br><span style="color:var(--text3);font-size:11px">คำค้นกว้างเกินไปบนข้อมูล 157k แถว — ลองพิมพ์ให้เฉพาะเจาะจงขึ้น หรือรันไฟล์ SQL เร่งความเร็ว (fitting_global_speedup.sql) ใน Supabase</span>' : '';
+      document.getElementById('fgBody').innerHTML='<tr><td colspan="5" style="padding:26px;text-align:center;color:var(--red)">'+fgE(m)+hint+'</td></tr>';
+      return;
+    }
+    fgTC=res.count||0; fgTP=Math.max(1,Math.ceil(fgTC/fgPS));
+    document.getElementById('fgTotal').textContent=fgTC.toLocaleString()+(fgQ?' (โดยประมาณ)':'');
+    document.getElementById('fgPgStat').textContent=(fgP+1)+' / '+fgTP;
+    document.getElementById('fgStC').textContent=fgTC.toLocaleString();
+    document.getElementById('fgPI').textContent='หน้า '+(fgP+1)+' / '+fgTP;
+    document.getElementById('fgTime').textContent='โหลดเมื่อ '+new Date().toLocaleTimeString('th');
+    document.getElementById('pgF').disabled=fgP===0; document.getElementById('pgP').disabled=fgP===0;
+    var last=(res.data&&res.data.length<fgPS);  // ถ้าหน้าไม่เต็ม = หน้าสุดท้าย
+    document.getElementById('pgN').disabled=(fgP>=fgTP-1)&&last;
+    document.getElementById('pgL').disabled=fgP>=fgTP-1;
+    if(!res.data||!res.data.length){ document.getElementById('fgBody').innerHTML='<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--text3)">ไม่พบรายการ</td></tr>'; return; }
+    var h='';
+    res.data.forEach(function(r,i){
+      var n=from+i+1;
+      h+='<tr>'
+        +'<td style="text-align:right;color:var(--text3);font-size:10px">'+n+'</td>'
+        +'<td><span class="fgcode">'+fgE(r.item_number)+'</span></td>'
+        +'<td title="'+fgE(r.product_name||'')+'">'+fgE(r.product_name||'—')+'</td>'
+        +'<td><span class="fgunit">'+fgE(r.unit||'—')+'</span></td>'
+        +'<td class="fgcat" title="'+fgE(r.search_name||'')+'">'+fgE(r.search_name||'—')+'</td>'
+        +'</tr>';
+    });
+    document.getElementById('fgBody').innerHTML=h;
+  };
+
+  function fgE(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  window.fgSearch=function(){ clearTimeout(fgST); fgST=setTimeout(function(){ fgQ=document.getElementById('fgSB').value.trim(); fgP=0; fgLoad(); },450); };
+  window.fgSort=function(c){ if(fgSC===c) fgSA=!fgSA; else{fgSC=c;fgSA=true;} fgP=0; fgLoad(); };
+  window.fgGo=function(p){ if(p<0)return; if(p>=fgTP && !document.getElementById('pgN').disabled){} else if(p>=fgTP) return; fgP=p; fgLoad(); };
+
+  window.fgExport=async function(){
+    document.getElementById('fgDtxt').textContent='กำลัง Export...';
+    var all=[],from=0,CHUNK=1000;
+    while(true){
+      var q=fgQ ? db().select('item_number,product_name,search_name,unit').or('item_number.ilike.%'+fgQ+'%,product_name.ilike.%'+fgQ+'%').order('item_number').range(from,from+CHUNK-1)
+                : db().select('item_number,product_name,search_name,unit').order('item_number').range(from,from+CHUNK-1);
+      var r=await q; if(r.error||!r.data||!r.data.length)break; all=all.concat(r.data); if(r.data.length<CHUNK)break; from+=CHUNK;
+    }
+    var csv='item_number,product_name,unit,search_name\n';
+    all.forEach(function(r){ csv+=[r.item_number,r.product_name,r.unit,r.search_name].map(function(v){return'"'+(v||'').replace(/"/g,'""')+'"';}).join(',')+'\n'; });
+    var blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='fitting_global_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+    document.getElementById('fgDtxt').textContent='Export '+all.length.toLocaleString()+' รายการ'; setTimeout(fgChk,2000);
+  };
+
+  // ── ใส่ปุ่ม "⚙ Fitting Global" เข้าไปใน head bar (topbar) ทุกหน้า ──
+  function injectButtons(){
+    document.querySelectorAll('.topbar-right').forEach(function(tr){
+      if(tr.querySelector('.fg-topbtn')) return;
+      var b=document.createElement('button');
+      b.className='fg-topbtn'; b.type='button'; b.title='ดู Fitting Global';
+      b.innerHTML='⚙ Fitting Global';
+      b.onclick=window.openFG;
+      tr.insertBefore(b, tr.firstChild);   // วางไว้ซ้ายสุดของกลุ่มปุ่มขวา
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',injectButtons);
+  else injectButtons();
+})();
+</script>
+<!-- ═══════════════ END FITTING GLOBAL ADD-ON ═══════════════ -->
+
 <body>
 <!-- ── SPLASH ── -->
 <div id="splash">
