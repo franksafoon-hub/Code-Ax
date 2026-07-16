@@ -883,9 +883,9 @@ body {
 (function(){
   function db(){ return sb.from('fitting_global'); }
   window.fgP=0; window.fgPS=50; var fgTC=0; window.fgTP=1;
-  var fgQ='', fgSC='item_number', fgSA=true, fgST;
+  var fgQ='', fgSC='recid', fgSA=false, fgST, fgTriedFallback=false;  // default: เรียงตาม RECID จาก AX (มากสุด = ล่าสุด) — ไม่แสดงคอลัมน์นี้ ใช้เรียงอย่างเดียว
 
-  window.openFG=function(){ document.getElementById('fgOv').style.display='flex'; fgChk(); fgLoad(); };
+  window.openFG=function(){ fgSC='recid'; fgSA=false; fgTriedFallback=false; fgP=0; document.getElementById('fgOv').style.display='flex'; fgChk(); fgLoad(); };
   window.closeFG=function(){ document.getElementById('fgOv').style.display='none'; };
 
   async function fgChk(){
@@ -902,10 +902,15 @@ body {
     var from=fgP*fgPS, to=from+fgPS-1, cols='item_number,product_name,search_name,unit';
     // ใช้ count:'estimated' (เร็ว ไม่สแกนทั้งตาราง) แทน exact -> กัน statement timeout
     var q = fgQ
-      ? db().select(cols,{count:'estimated'}).or('item_number.ilike.%'+fgQ+'%,product_name.ilike.%'+fgQ+'%,search_name.ilike.%'+fgQ+'%').order(fgSC,{ascending:fgSA}).range(from,to)
-      : db().select(cols,{count:'estimated'}).order(fgSC,{ascending:fgSA}).range(from,to);
+      ? db().select(cols,{count:'estimated'}).or('item_number.ilike.%'+fgQ+'%,product_name.ilike.%'+fgQ+'%,search_name.ilike.%'+fgQ+'%').order(fgSC,{ascending:fgSA,nullsFirst:false}).range(from,to)
+      : db().select(cols,{count:'estimated'}).order(fgSC,{ascending:fgSA,nullsFirst:false}).range(from,to);
     var res=await q;
     if(res.error){
+      // ถ้ายังไม่มีคอลัมน์ recid (ยังไม่ได้รัน SQL) -> fallback ไปเรียงตาม item_number แอปยังทำงานได้ปกติ
+      if(!fgTriedFallback && fgSC==='recid' && (res.error.code==='42703' || /recid/i.test(res.error.message||'') || /does not exist/i.test(res.error.message||''))){
+        fgTriedFallback=true; fgSC='item_number'; fgSA=true;
+        return window.fgLoad();
+      }
       var m=res.error.message||''; 
       var hint = /timeout/i.test(m) ? '<br><span style="color:var(--text3);font-size:11px">คำค้นกว้างเกินไปบนข้อมูล 157k แถว — ลองพิมพ์ให้เฉพาะเจาะจงขึ้น หรือรันไฟล์ SQL เร่งความเร็ว (fitting_global_speedup.sql) ใน Supabase</span>' : '';
       document.getElementById('fgBody').innerHTML='<tr><td colspan="5" style="padding:26px;text-align:center;color:var(--red)">'+fgE(m)+hint+'</td></tr>';
