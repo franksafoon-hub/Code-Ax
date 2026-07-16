@@ -860,10 +860,8 @@ body {
           <th style="width:48px;cursor:default">#</th>
           <th onclick="fgSort('item_number')">Item Number</th>
           <th onclick="fgSort('product_name')">Product Name</th>
-          <th onclick="fgSort('unit')" style="width:90px">Unit</th>
-          <th onclick="fgSort('search_name')">Search Name</th>
         </tr></thead>
-        <tbody id="fgBody"><tr><td colspan="5" style="padding:40px;text-align:center;color:var(--text3)">กดเปิดเพื่อโหลดข้อมูล</td></tr></tbody>
+        <tbody id="fgBody"><tr><td colspan="3" style="padding:40px;text-align:center;color:var(--text3)">กดเปิดเพื่อโหลดข้อมูล</td></tr></tbody>
       </table>
     </div>
     <div class="fg-pg">
@@ -898,8 +896,8 @@ body {
   }
 
   window.fgLoad=async function(){
-    document.getElementById('fgBody').innerHTML='<tr><td colspan="5" style="padding:30px;text-align:center;color:var(--text3)">&#9203; กำลังโหลด...</td></tr>';
-    var from=fgP*fgPS, to=from+fgPS-1, cols='item_number,product_name,search_name,unit';
+    document.getElementById('fgBody').innerHTML='<tr><td colspan="3" style="padding:30px;text-align:center;color:var(--text3)">&#9203; กำลังโหลด...</td></tr>';
+    var from=fgP*fgPS, to=from+fgPS-1, cols='item_number,product_name';
     // ใช้ count:'estimated' (เร็ว ไม่สแกนทั้งตาราง) แทน exact -> กัน statement timeout
     var q = fgQ
       ? db().select(cols,{count:'estimated'}).or('item_number.ilike.%'+fgQ+'%,product_name.ilike.%'+fgQ+'%,search_name.ilike.%'+fgQ+'%').order(fgSC,{ascending:fgSA,nullsFirst:false}).range(from,to)
@@ -913,7 +911,7 @@ body {
       }
       var m=res.error.message||''; 
       var hint = /timeout/i.test(m) ? '<br><span style="color:var(--text3);font-size:11px">คำค้นกว้างเกินไปบนข้อมูล 157k แถว — ลองพิมพ์ให้เฉพาะเจาะจงขึ้น หรือรันไฟล์ SQL เร่งความเร็ว (fitting_global_speedup.sql) ใน Supabase</span>' : '';
-      document.getElementById('fgBody').innerHTML='<tr><td colspan="5" style="padding:26px;text-align:center;color:var(--red)">'+fgE(m)+hint+'</td></tr>';
+      document.getElementById('fgBody').innerHTML='<tr><td colspan="3" style="padding:26px;text-align:center;color:var(--red)">'+fgE(m)+hint+'</td></tr>';
       return;
     }
     fgTC=res.count||0; fgTP=Math.max(1,Math.ceil(fgTC/fgPS));
@@ -926,7 +924,7 @@ body {
     var last=(res.data&&res.data.length<fgPS);  // ถ้าหน้าไม่เต็ม = หน้าสุดท้าย
     document.getElementById('pgN').disabled=(fgP>=fgTP-1)&&last;
     document.getElementById('pgL').disabled=fgP>=fgTP-1;
-    if(!res.data||!res.data.length){ document.getElementById('fgBody').innerHTML='<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--text3)">ไม่พบรายการ</td></tr>'; return; }
+    if(!res.data||!res.data.length){ document.getElementById('fgBody').innerHTML='<tr><td colspan="3" style="padding:40px;text-align:center;color:var(--text3)">ไม่พบรายการ</td></tr>'; return; }
     var h='';
     res.data.forEach(function(r,i){
       var n=from+i+1;
@@ -934,8 +932,6 @@ body {
         +'<td style="text-align:right;color:var(--text3);font-size:10px">'+n+'</td>'
         +'<td><span class="fgcode">'+fgE(r.item_number)+'</span></td>'
         +'<td title="'+fgE(r.product_name||'')+'">'+fgE(r.product_name||'—')+'</td>'
-        +'<td><span class="fgunit">'+fgE(r.unit||'—')+'</span></td>'
-        +'<td class="fgcat" title="'+fgE(r.search_name||'')+'">'+fgE(r.search_name||'—')+'</td>'
         +'</tr>';
     });
     document.getElementById('fgBody').innerHTML=h;
