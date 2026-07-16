@@ -833,7 +833,7 @@ body {
 </style>
 
 <!-- Main overlay (READ-ONLY) -->
-<div class="fg-overlay" id="fgOv" style="display:none" onclick="if(event.target===this)closeFG()">
+<div class="fg-overlay" id="fgOv" style="display:none" onmousedown="window.fgOvDown=(event.target===this)" onclick="if(event.target===this&&window.fgOvDown)closeFG()">
   <div class="fg-modal">
     <div class="fg-head">
       <span style="font-size:15px">⚙</span>
