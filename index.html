@@ -1176,6 +1176,10 @@ body {
         </button>
       </div>
 
+      <div class="worker-dept-tabs" id="senderDeptTabs" style="display:none">
+        <!-- filled by JS -->
+      </div>
+
       <div class="tickets-list" id="myTicketsList">
         <div class="empty-state" id="senderEmpty">
           <div style="font-size:32px;opacity:0.3">📭</div>
@@ -1365,6 +1369,7 @@ async function loadDepartments() {
   localStorage.setItem('dispatch_departments', JSON.stringify(departments));
   renderAllDeptDropdowns();
   renderWorkerDeptTabs();
+  renderSenderDeptTabs();
   const saved = localStorage.getItem('dispatch_sender_dept');
   const sel = document.getElementById('senderDept');
   if (sel && saved && [...sel.options].some(o => o.value === saved)) sel.value = saved;
@@ -1382,6 +1387,7 @@ function subscribeDepartments() {
         localStorage.setItem('dispatch_departments', JSON.stringify(departments));
         renderAllDeptDropdowns();
         renderWorkerDeptTabs();
+        renderSenderDeptTabs();
         const list = document.getElementById('deptInlineList');
         if (list && typeof buildDeptInlineListHTML === 'function') list.innerHTML = buildDeptInlineListHTML();
         showToast('รายชื่อแผนกอัปเดตแล้ว 🔄', 'info', '🏢');
@@ -1595,6 +1601,8 @@ function removeDeptInline(idx) {
   renderAllDeptDropdowns();
   renderWorkerDeptTabs();
   if (selectedWorkerDept === name) { selectedWorkerDept = 'all'; renderWorkerQueue(); }
+  if (selectedSenderDept === name) { selectedSenderDept = 'all'; if (currentSenderTab === 'all') renderAllQueue(); }
+  renderSenderDeptTabs();
   // Re-render
   const el = document.getElementById('deptInlineList');
   if (el) el.innerHTML = departments.length
@@ -3004,6 +3012,7 @@ function subscribeAsWorker() {
 // ─── SENDER TABS ───
 let currentSenderTab = 'my';
 let allTickets = [];
+let selectedSenderDept = 'all';
 
 function switchSenderTab(tab) {
   currentSenderTab = tab;
@@ -3011,7 +3020,11 @@ function switchSenderTab(tab) {
   document.getElementById('tabAllBtn').classList.toggle('active', tab === 'all');
   document.getElementById('myTicketsList').style.display = tab === 'my' ? 'flex' : 'none';
   document.getElementById('allQueueList').style.display = tab === 'all' ? 'flex' : 'none';
-  if (tab === 'all' && allTickets.length === 0) loadAllQueue();
+  document.getElementById('senderDeptTabs').style.display = tab === 'all' ? 'flex' : 'none';
+  if (tab === 'all') {
+    if (allTickets.length === 0) loadAllQueue();
+    else { renderSenderDeptTabs(); renderAllQueue(); }
+  }
 }
 
 async function refreshAllQueue() {
@@ -3030,16 +3043,67 @@ async function loadAllQueue() {
   renderAllQueue();
 }
 
+function renderSenderDeptTabs() {
+  const container = document.getElementById('senderDeptTabs');
+  if (!container) return;
+  const deptCount = {};
+  allTickets.filter(t => t.status !== 'done').forEach(t => {
+    const d = t.department || '';
+    if (d) deptCount[d] = (deptCount[d] || 0) + 1;
+  });
+  const allActive = allTickets.filter(t => t.status !== 'done').length;
+  container.innerHTML = [
+    `<button class="w-dept-tab ${selectedSenderDept === 'all' ? 'active' : ''}" onclick="setSenderDept('all')">
+      ทั้งหมด
+      ${allActive ? `<span class="w-dept-tab-badge">${allActive}</span>` : ''}
+    </button>`,
+    ...departments.map(d => {
+      const cnt = deptCount[d] || 0;
+      return `<button class="w-dept-tab ${selectedSenderDept === d ? 'active' : ''}" onclick="setSenderDept('${d}')">
+        ${escHtml(d)}
+        ${cnt ? `<span class="w-dept-tab-badge">${cnt}</span>` : ''}
+      </button>`;
+    })
+  ].join('');
+}
+
+function setSenderDept(dept) {
+  selectedSenderDept = dept;
+  renderSenderDeptTabs();
+  renderAllQueue();
+}
+
 function renderAllQueue() {
   const list = document.getElementById('allQueueList');
   const empty = document.getElementById('allQueueEmpty');
+  renderSenderDeptTabs();
   list.querySelectorAll('.queue-ro-card,.queue-section-label').forEach(el => el.remove());
-  if (!allTickets.length) { empty.style.display = 'flex'; return; }
+
+  // Badge บนแท็บ "คิวทั้งหมด" = งานค้างรวมทุกแผนก (ไม่ขึ้นกับตัวกรอง)
+  const totalActive = allTickets.filter(t => t.status !== 'done').length;
+  const badge = document.getElementById('allQueueCount');
+  badge.textContent = totalActive || '';
+  badge.style.background = totalActive > 0 ? 'rgba(255,59,48,0.15)' : '';
+  badge.style.color = totalActive > 0 ? 'var(--red)' : '';
+
+  const filtered = selectedSenderDept === 'all'
+    ? allTickets
+    : allTickets.filter(t => (t.department || '') === selectedSenderDept);
+
+  if (!filtered.length) {
+    empty.style.display = 'flex';
+    const msg = empty.children[1];
+    if (msg) msg.textContent = selectedSenderDept === 'all'
+      ? 'ไม่มีคิวค้างอยู่'
+      : `ไม่มีงานของแผนก ${selectedSenderDept}`;
+    return;
+  }
   empty.style.display = 'none';
-  const pending    = allTickets.filter(t => t.status === 'pending');
-  const inprog     = allTickets.filter(t => t.status === 'in_progress');
-  const commented  = allTickets.filter(t => t.status === 'commented');
-  const done       = allTickets.filter(t => t.status === 'done');
+
+  const pending    = filtered.filter(t => t.status === 'pending');
+  const inprog     = filtered.filter(t => t.status === 'in_progress');
+  const commented  = filtered.filter(t => t.status === 'commented');
+  const done       = filtered.filter(t => t.status === 'done');
   const myIds = new Set(myTokens.map(t => t.id));
   function addSection(label, tickets) {
     if (!tickets.length) return;
@@ -3050,11 +3114,6 @@ function renderAllQueue() {
   addSection('กำลังดำเนินการ', inprog);
   addSection('💬 มี Comment รอตอบกลับ', commented);
   addSection('เสร็จแล้ว', done);
-  const activeCount = pending.length + inprog.length + commented.length;
-  const badge = document.getElementById('allQueueCount');
-  badge.textContent = activeCount || '';
-  badge.style.background = activeCount > 0 ? 'rgba(255,59,48,0.15)' : '';
-  badge.style.color = activeCount > 0 ? 'var(--red)' : '';
 }
 
 function buildQueueRoCard(ticket, isMine) {
